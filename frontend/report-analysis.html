@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reports & Analytics - HireHub</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; font-family:Poppins,sans-serif; }
+    body { background:#f5f6fa; }
+
+    .navbar {
+        background:#0a66c2;
+        padding:15px 30px;
+        color:white;
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        box-shadow:0 2px 6px rgba(0,0,0,0.15);
+    }
+    .navbar h2 { font-size:22px; }
+    .navbar button {
+        background:white; color:#0a66c2; border:none;
+        padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:600;
+        transition:0.2s;
+    }
+    .navbar button:hover { background:#e8f0ff; }
+
+    .container {
+        padding:30px;
+        display:grid;
+        grid-template-columns:repeat(auto-fit, minmax(280px,1fr));
+        gap:20px;
+    }
+
+    .card {
+        background:white;
+        padding:22px;
+        border-radius:10px;
+        box-shadow:0 2px 8px rgba(0,0,0,0.1);
+        transition:0.3s;
+    }
+    .card:hover {
+        transform:translateY(-4px);
+        box-shadow:0 4px 12px rgba(0,0,0,0.15);
+    }
+
+    .card h3 {
+        color:#0a66c2;
+        margin-bottom:6px;
+        font-size:20px;
+    }
+    .card p {
+        font-size:15px;
+        color:#333;
+        font-weight:500;
+        line-height: 1.6;
+    }
+
+    .card button {
+        margin-top:14px;
+        padding:8px 14px;
+        border:none;
+        border-radius:6px;
+        background:#0a66c2;
+        color:white;
+        font-size:15px;
+        font-weight:600;
+        cursor:pointer;
+        transition:0.2s;
+    }
+    .card button:hover {
+        background:#084c91;
+    }
+
+</style>
+</head>
+<body>
+
+<div class="navbar">
+    <h2>📊 Reports & Analytics</h2>
+    <button onclick="location.href='admin-dashboard.html'">⬅ Back to dashboard</button>
+</div>
+
+<div class="container">
+
+    <div class="card">
+        <h3>👥 User Report</h3>
+        <p id="userStatsText">Loading user metrics...</p>
+        <button onclick="location.href='user-report.html'">View Report</button>
+    </div>
+
+    <div class="card">
+        <h3>💼 Job Report</h3>
+        <p id="jobStatsText">Loading job metrics...</p>
+        <button onclick="location.href='job-report.html'">View Report</button>
+    </div>
+
+    <div class="card">
+        <h3>📩 Application Report</h3>
+        <p id="appStatsText">Loading application metrics...</p>
+        <button onclick="location.href='application-report.html'">View Report</button>
+    </div>
+
+    <div class="card">
+        <h3>⚠️ System Alerts</h3>
+        <p id="alertStatsText">Loading system status...</p>
+        <button onclick="location.href='system-alerts.html'">View Alerts</button>
+    </div>
+
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    window.addEventListener('DOMContentLoaded', async () => {
+        if (!requireAuth('ADMIN')) return;
+
+        try {
+            const res = await ReportsAPI.adminDashboard();
+            if (res.ok && res.data.success) {
+                const s = res.data.stats;
+                const appsByStatus = res.data.applicationsByStatus || [];
+                const jobsByStatus = res.data.jobsByStatus || [];
+
+                // User stats
+                const inactiveUsers = s.totalUsers - s.activeUsers;
+                document.getElementById('userStatsText').innerHTML = 
+                    `Total Users: <b>${s.totalUsers}</b><br>Active: ${s.activeUsers} | Inactive: ${inactiveUsers}`;
+
+                // Job stats
+                const approvedJobs = (jobsByStatus.find(j => j.status === 'APPROVED') || {})._count?._all || 0;
+                document.getElementById('jobStatsText').innerHTML = 
+                    `Total Jobs: <b>${s.totalJobs}</b><br>Approved: ${approvedJobs} | Pending: ${s.pendingJobs}`;
+
+                // Application stats
+                const shortlisted = (appsByStatus.find(a => a.status === 'SHORTLISTED') || {})._count?._all || 0;
+                const rejected = (appsByStatus.find(a => a.status === 'REJECTED') || {})._count?._all || 0;
+                document.getElementById('appStatsText').innerHTML = 
+                    `Total Applications: <b>${s.totalApplications}</b><br>Shortlisted: ${shortlisted} | Rejected: ${rejected}`;
+
+                // Alerts
+                document.getElementById('alertStatsText').innerHTML = 
+                    `Pending Job Approvals: <b>${s.pendingJobs}</b><br>Scheduled Interviews: <b>${s.totalInterviews}</b>`;
+            } else {
+                document.getElementById('userStatsText').textContent = 'Could not load stats.';
+                document.getElementById('jobStatsText').textContent = 'Could not load stats.';
+                document.getElementById('appStatsText').textContent = 'Could not load stats.';
+                document.getElementById('alertStatsText').textContent = 'Could not load alerts.';
+            }
+        } catch (err) {
+            console.error('Failed to load reports overview:', err);
+        }
+    });
+</script>
+</body>
+</html>

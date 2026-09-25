@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HireHub - Candidate Dashboard</title>
+
+<style>
+* { margin:0; padding:0; font-family:Poppins,sans-serif; box-sizing:border-box; }
+body { background:#f5f6fa; }
+
+/* NAVBAR */
+.navbar {
+    background:#0a66c2;
+    padding:15px 30px;
+    color:white;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    box-shadow:0 2px 8px rgba(0,0,0,0.2);
+}
+.navbar h2 { font-size:24px; font-weight:700; letter-spacing:0.5px; }
+.navbar button {
+    background:white; 
+    color:#0a66c2;
+    border:none;
+    padding:8px 16px; 
+    border-radius:6px; 
+    cursor:pointer; 
+    font-weight:600;
+    transition:0.2s;
+}
+.navbar button:hover { background:#e3eeff; }
+
+/* LAYOUT */
+.container { display:grid; grid-template-columns:250px 1fr; height:calc(100vh - 60px); position:relative; }
+
+/* SIDEBAR */
+.sidebar {
+    background:#fff; padding:20px; border-right:1px solid #ddd; box-shadow:2px 0 8px rgba(0,0,0,0.1); z-index:10;
+}
+.sidebar h3 { margin-bottom:20px; color:#0a66c2; font-size:20px; font-weight:700; }
+.sidebar a {
+    display:block; padding:12px; color:#0a66c2; text-decoration:none; margin-bottom:12px; border-radius:6px;
+    background:#eef5ff; font-weight:600; border-left:4px solid transparent; transition:0.25s;
+}
+.sidebar a:hover, .sidebar a.active { background:#cfe3ff; border-left:4px solid #0a66c2; }
+
+/* MAIN CONTENT WITH BACKGROUND IMAGE */
+.content {
+    padding:35px;
+    overflow-y:auto;
+    position:relative;
+
+    /* ✅ Your background image goes here */
+    background: url("images/candidate-dashboard-bg.jpg") no-repeat center center/cover;
+}
+.content::before {
+    content:"";
+    position:absolute;
+    inset:0;
+    background:rgba(255,255,255,0.2); /* Light overlay to increase readability */
+    backdrop-filter: blur(2px);
+    z-index:0;
+}
+
+/* GLASS CARDS */
+.card {
+    background:rgba(255,255,255,0.85);
+    backdrop-filter:blur(10px);
+    padding:25px;
+    border-radius:12px;
+    box-shadow:0px 6px 20px rgba(0,0,0,0.15);
+    margin-bottom:25px;
+    position:relative;
+    z-index:2;
+    animation:fadeIn 0.7s ease;
+}
+
+/* ANIMATION */
+@keyframes fadeIn { from { opacity:0; transform:translateY(15px); } to { opacity:1; transform:translateY(0); } }
+
+/* TEXT STYLING */
+h3 { font-size:24px; color:#0a66c2; font-weight:700; margin-bottom:10px; }
+p, li { font-size:17px; color:#222; font-weight:500; }
+ul li { margin-bottom:8px; display:flex; align-items:center; gap:8px; }
+
+</style>
+</head>
+<body>
+
+<div class="navbar">
+    <h2>✨ HireHub Candidate Dashboard</h2>
+    <div style="display:flex;align-items:center;gap:15px;">
+        <span id="userNameDisplay" style="font-weight:600;font-size:15px;"></span>
+        <button onclick="handleLogout()">Logout</button>
+    </div>
+</div>
+
+<div class="container">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+        <h3>📌 Candidate Menu</h3>
+        <a href="dashboard.html" class="active">🏠 Dashboard</a>
+        <a href="jobs.html">🔍 Search Jobs</a>
+        <a href="applications.html?mine=1">📄 My Applications</a>
+        <a href="upload-resume.html">📎 Upload Resume</a>
+        <a href="saved-jobs.html">📌 Saved Jobs</a>
+        <a href="notifications.html">🔔 Notifications <span id="unreadBadge" style="display:none;background:#ff4d4d;color:white;padding:2px 6px;border-radius:10px;font-size:11px;margin-left:5px;"></span></a>
+        <a href="company-reviews.html">⭐ Company Reviews</a>
+        <a href="interview-feedback.html">📝 Interview Feedback</a>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="content">
+
+        <!-- WELCOME CARD -->
+        <div class="card">
+            <h3 id="welcomeHeading">👋 Welcome to HireHub</h3>
+            <p id="welcomeSubtext">Your smart job search & recruitment assistant</p>
+        </div>
+
+        <!-- STATS CARD -->
+        <div class="card" id="candidateStatsCard" style="display:none;">
+            <h3>📊 Your Activity Overview</h3>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:15px;margin-top:12px;">
+                <div style="background:rgba(10,102,194,0.08);padding:14px;border-radius:8px;text-align:center;">
+                    <div style="font-size:28px;font-weight:800;color:#0a66c2;" id="statApplications">0</div>
+                    <div style="font-size:13px;font-weight:600;color:#444;">Applications</div>
+                </div>
+                <div style="background:rgba(10,102,194,0.08);padding:14px;border-radius:8px;text-align:center;">
+                    <div style="font-size:28px;font-weight:800;color:#0a66c2;" id="statInterviews">0</div>
+                    <div style="font-size:13px;font-weight:600;color:#444;">Interviews</div>
+                </div>
+                <div style="background:rgba(10,102,194,0.08);padding:14px;border-radius:8px;text-align:center;">
+                    <div style="font-size:28px;font-weight:800;color:#0a66c2;" id="statSaved">0</div>
+                    <div style="font-size:13px;font-weight:600;color:#444;">Saved Jobs</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- FEATURES CARD -->
+        <div class="card">
+            <h3>🚀 System Features</h3>
+            <ul>
+                <li>✅ Smart Job Search & Application Tracking</li>
+                <li>✅ Resume Upload & Easy Job Bookmarking</li>
+                <li>✅ Interview Scheduling & Feedback Updates</li>
+            </ul>
+        </div>
+
+    </div>
+
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    function handleLogout() {
+        Auth.clearSession();
+        window.location.href = 'login.html';
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+        if (!requireAuth('CANDIDATE')) return;
+
+        const user = Auth.getUser();
+        if (user && user.name) {
+            document.getElementById('userNameDisplay').textContent = user.name;
+            document.getElementById('welcomeHeading').textContent = `👋 Welcome back, ${user.name}!`;
+            document.getElementById('welcomeSubtext').textContent = `Logged in as ${user.email}`;
+        }
+
+        // Fetch candidate live stats
+        try {
+            const res = await ReportsAPI.candidateStats();
+            if (res.ok && res.data.success) {
+                const s = res.data.stats;
+                document.getElementById('statApplications').textContent = s.totalApplications || 0;
+                document.getElementById('statInterviews').textContent = s.totalInterviews || 0;
+                document.getElementById('statSaved').textContent = s.savedJobs || 0;
+                document.getElementById('candidateStatsCard').style.display = 'block';
+            }
+        } catch (e) {
+            console.warn('Failed to load candidate stats:', e);
+        }
+
+        // Check unread notifications
+        try {
+            const notifRes = await NotificationsAPI.getAll();
+            if (notifRes.ok && notifRes.data.unreadCount > 0) {
+                const badge = document.getElementById('unreadBadge');
+                badge.textContent = notifRes.data.unreadCount;
+                badge.style.display = 'inline';
+            }
+        } catch (e) {}
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HireHub - Company Reviews</title>
+<style>
+    * { margin:0; padding:0; font-family:Poppins,sans-serif; box-sizing:border-box; }
+    body { background:#f5f6fa; }
+
+    .navbar {
+        background:#0a66c2;
+        padding:15px 30px;
+        color:white;
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+    }
+    .navbar h2 { font-size:22px; }
+    .navbar button {
+        background:white; color:#0a66c2; border:none;
+        padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:600;
+    }
+
+    .container { max-width:900px; margin:30px auto; padding:0 15px; }
+
+    h2 { color:#0a66c2; margin-bottom:5px; }
+
+    .section-title {
+        font-size:18px;
+        font-weight:700;
+        color:#0a66c2;
+        margin:20px 0 12px;
+        border-bottom:2px solid #e3eeff;
+        padding-bottom:6px;
+    }
+
+    .review-card {
+        background:white;
+        padding:18px 20px;
+        border-radius:8px;
+        box-shadow:0 1px 4px rgba(0,0,0,0.1);
+        margin-bottom:16px;
+        border-left:4px solid #0a66c2;
+    }
+
+    .review-card h3 { color:#0a66c2; font-size:17px; margin-bottom:4px; }
+    .review-meta { display:flex; align-items:center; gap:15px; margin-bottom:8px; flex-wrap:wrap; }
+    .stars { color:gold; font-size:16px; }
+    .rating-num { font-weight:600; font-size:15px; }
+    .review-author { font-size:13px; color:#888; }
+
+    .review-card .review-title { font-weight:700; color:#222; margin-bottom:5px; }
+    .review-card .review-desc { color:#444; font-size:14px; margin-bottom:6px; }
+    .review-card .review-pros-cons { font-size:13px; color:#555; }
+    .review-card .recommend { font-size:13px; font-weight:600; }
+
+    /* Submit form */
+    .form-card {
+        background:white;
+        padding:20px;
+        border-radius:8px;
+        box-shadow:0 1px 4px rgba(0,0,0,0.1);
+        margin-bottom:25px;
+    }
+
+    input, select, textarea {
+        width:100%;
+        padding:10px;
+        margin-top:8px;
+        border:1px solid #ccc;
+        border-radius:6px;
+        font-family:Poppins,sans-serif;
+        font-size:14px;
+    }
+
+    label { font-weight:600; margin-top:12px; display:block; }
+
+    button.submit-btn {
+        background:#0a66c2;
+        color:white;
+        padding:10px 18px;
+        border:none;
+        border-radius:6px;
+        cursor:pointer;
+        margin-top:14px;
+        font-size:15px;
+        font-weight:600;
+    }
+    button.submit-btn:hover { background:#084e96; }
+    button.submit-btn:disabled { background:#ccc; cursor:not-allowed; }
+
+    #loadingMsg { text-align:center; padding:30px; color:#666; }
+    #emptyMsg { text-align:center; padding:30px; color:#888; display:none; }
+    #formError { color:red; font-size:13px; margin-top:8px; font-weight:600; }
+</style>
+</head>
+<body>
+
+<div class="navbar">
+    <h2>⭐ Company Reviews</h2>
+    <button id="backNavBtn" onclick="handleBackNav()">Dashboard</button>
+</div>
+
+<div class="container">
+    <h2>⭐ Company Reviews</h2>
+    <p style="color:#555;margin-bottom:20px;">See what candidates are saying about companies or share your own experience.</p>
+
+    <!-- Submit Review Form (only for logged-in candidates) -->
+    <div class="form-card" id="reviewFormCard" style="display:none;">
+        <div class="section-title">✍ Submit Your Review</div>
+        <form id="reviewForm" onsubmit="handleSubmitReview(event)">
+            <label>Company Name</label>
+            <input type="text" id="reviewCompany" placeholder="e.g. Google, Microsoft" required>
+
+            <label>Review Title</label>
+            <input type="text" id="reviewTitle" placeholder="e.g. Great culture, good pay" required>
+
+            <label>Rating</label>
+            <select id="reviewRating" required>
+                <option value="">Select Rating</option>
+                <option value="5">⭐⭐⭐⭐⭐ – Excellent</option>
+                <option value="4">⭐⭐⭐⭐ – Good</option>
+                <option value="3">⭐⭐⭐ – Average</option>
+                <option value="2">⭐⭐ – Poor</option>
+                <option value="1">⭐ – Very Bad</option>
+            </select>
+
+            <label>Your Review</label>
+            <textarea id="reviewDescription" rows="4" placeholder="Describe your interview/job experience..." required></textarea>
+
+            <label>Pros (optional)</label>
+            <input type="text" id="reviewPros" placeholder="e.g. Friendly team, good work-life balance">
+
+            <label>Cons (optional)</label>
+            <input type="text" id="reviewCons" placeholder="e.g. Long interview process">
+
+            <label>
+                <input type="checkbox" id="reviewRecommend" checked style="width:auto;margin-right:6px;">
+                I would recommend this company
+            </label>
+
+            <p id="formError"></p>
+
+            <button type="submit" class="submit-btn" id="reviewSubmitBtn">Submit Review</button>
+        </form>
+    </div>
+
+    <!-- Existing Reviews -->
+    <div class="section-title">Recent Reviews</div>
+    <div id="loadingMsg">Loading reviews...</div>
+    <div id="reviewList"></div>
+    <div id="emptyMsg">No reviews yet. Be the first to submit one!</div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    function starsHtml(rating) {
+        return '⭐'.repeat(rating) + '☆'.repeat(5 - rating);
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);
+    }
+
+    async function loadReviews() {
+        const list = document.getElementById('reviewList');
+        const loading = document.getElementById('loadingMsg');
+        const empty = document.getElementById('emptyMsg');
+
+        loading.style.display = 'block';
+        list.innerHTML = '';
+        empty.style.display = 'none';
+
+        try {
+            const res = await ReviewsAPI.getAll({ limit: 20 });
+            loading.style.display = 'none';
+
+            if (!res.ok || !res.data.success) {
+                list.innerHTML = '<p style="color:red;text-align:center;padding:20px;">Failed to load reviews.</p>';
+                return;
+            }
+
+            const reviews = res.data.reviews;
+            if (!reviews || reviews.length === 0) {
+                empty.style.display = 'block';
+                return;
+            }
+
+            reviews.forEach(r => {
+                const card = document.createElement('div');
+                card.className = 'review-card';
+                const date = new Date(r.createdAt).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
+                const currentUser = Auth.getUser();
+                const canDelete = currentUser && (currentUser.role === 'ADMIN' || currentUser.id === r.authorId);
+
+                card.innerHTML = `
+                    <h3>🏢 ${escapeHtml(r.company)}</h3>
+                    <div class="review-meta">
+                        <span class="stars" title="${r.rating}/5">${starsHtml(r.rating)}</span>
+                        <span class="rating-num">${r.rating}/5</span>
+                        <span class="review-author">by ${escapeHtml(r.author?.name || 'Anonymous')} · ${date}</span>
+                    </div>
+                    <div class="review-title">📌 ${escapeHtml(r.title)}</div>
+                    <div class="review-desc">${escapeHtml(r.description)}</div>
+                    ${r.pros ? `<div class="review-pros-cons">✅ <strong>Pros:</strong> ${escapeHtml(r.pros)}</div>` : ''}
+                    ${r.cons ? `<div class="review-pros-cons">❌ <strong>Cons:</strong> ${escapeHtml(r.cons)}</div>` : ''}
+                    <div class="recommend" style="margin-top:8px;color:${r.recommend ? '#28a745' : '#e74c3c'};">
+                        ${r.recommend ? '👍 Recommends this company' : '👎 Does not recommend'}
+                    </div>
+                    ${canDelete ? `<button onclick="handleDeleteReview(${r.id}, this)" style="margin-top:10px;background:#e74c3c;color:white;border:none;padding:5px 12px;border-radius:5px;cursor:pointer;font-size:13px;">Delete</button>` : ''}
+                `;
+                list.appendChild(card);
+            });
+
+        } catch (e) {
+            loading.style.display = 'none';
+            list.innerHTML = '<p style="color:red;text-align:center;padding:20px;">Network error loading reviews.</p>';
+        }
+    }
+
+    async function handleSubmitReview(event) {
+        event.preventDefault();
+        const btn = document.getElementById('reviewSubmitBtn');
+        const errEl = document.getElementById('formError');
+        errEl.textContent = '';
+
+        const payload = {
+            company: document.getElementById('reviewCompany').value.trim(),
+            title: document.getElementById('reviewTitle').value.trim(),
+            rating: parseInt(document.getElementById('reviewRating').value),
+            description: document.getElementById('reviewDescription').value.trim(),
+            pros: document.getElementById('reviewPros').value.trim() || null,
+            cons: document.getElementById('reviewCons').value.trim() || null,
+            recommend: document.getElementById('reviewRecommend').checked
+        };
+
+        if (!payload.rating) {
+            errEl.textContent = 'Please select a rating.';
+            return;
+        }
+
+        btn.disabled = true;
+        btn.textContent = 'Submitting...';
+
+        try {
+            const res = await ReviewsAPI.post(payload);
+            if (res.ok && res.data.success) {
+                showToast('Review submitted successfully!', 'success');
+                document.getElementById('reviewForm').reset();
+                btn.disabled = false;
+                btn.textContent = 'Submit Review';
+                loadReviews(); // Reload reviews
+            } else {
+                errEl.textContent = res.data.message || 'Failed to submit review.';
+                btn.disabled = false;
+                btn.textContent = 'Submit Review';
+            }
+        } catch (e) {
+            errEl.textContent = 'Network error. Please try again.';
+            btn.disabled = false;
+            btn.textContent = 'Submit Review';
+        }
+    }
+
+    async function handleDeleteReview(id, btn) {
+        if (!confirm('Delete this review?')) return;
+        btn.disabled = true;
+        try {
+            const res = await ReviewsAPI.delete(id);
+            if (res.ok && res.data.success) {
+                btn.closest('.review-card').remove();
+                showToast('Review deleted', 'success');
+            } else {
+                showToast(res.data.message || 'Failed to delete', 'error');
+                btn.disabled = false;
+            }
+        } catch (e) {
+            showToast('Network error', 'error');
+            btn.disabled = false;
+        }
+    }
+
+    function handleBackNav() {
+        if (!Auth.isLoggedIn()) {
+            window.location.href = 'index.html';
+        } else {
+            const role = Auth.getRole();
+            if (role === 'ADMIN') window.location.href = 'admin-dashboard.html';
+            else if (role === 'RECRUITER') window.location.href = 'recruiter-dashboard.html';
+            else window.location.href = 'dashboard.html';
+        }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        const backBtn = document.getElementById('backNavBtn');
+        if (backBtn && !Auth.isLoggedIn()) {
+            backBtn.textContent = 'Home';
+        }
+        // Show form only for logged-in candidates
+        if (Auth.isLoggedIn() && Auth.getRole() === 'CANDIDATE') {
+            document.getElementById('reviewFormCard').style.display = 'block';
+        }
+        loadReviews();
+    });
+</script>
+</body>
+</html>

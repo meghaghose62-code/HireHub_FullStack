@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HireHub - Notifications</title>
+<style>
+    * { margin:0; padding:0; font-family:Poppins,sans-serif; box-sizing:border-box; }
+    body { background:#f5f6fa; }
+
+    .navbar {
+        background:#0a66c2;
+        padding:15px 30px;
+        color:white;
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+    }
+    .navbar h2 { font-size:22px; }
+    .navbar button {
+        background:white; color:#0a66c2; border:none;
+        padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:600;
+    }
+
+    .container {
+        width:90%;
+        max-width:800px;
+        margin:30px auto;
+    }
+
+    .toolbar {
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        margin-bottom:20px;
+    }
+
+    .toolbar h2 { color:#0a66c2; font-size:22px; }
+
+    .toolbar-btns { display:flex; gap:10px; }
+    .toolbar-btns button {
+        border:none; padding:8px 14px; border-radius:6px; cursor:pointer; font-weight:600; font-size:14px;
+    }
+    #markAllBtn { background:#0a66c2; color:white; }
+    #markAllBtn:hover { background:#084d94; }
+
+    .notification-card {
+        background:white;
+        padding:15px 20px;
+        border-radius:8px;
+        box-shadow:0 1px 4px rgba(0,0,0,0.1);
+        margin-bottom:12px;
+        border-left:5px solid #0a66c2;
+        display:flex;
+        justify-content:space-between;
+        align-items:flex-start;
+        gap:15px;
+        transition:0.2s;
+    }
+
+    .notification-card.unread {
+        background:#eef5ff;
+        border-left-color:#0a66c2;
+    }
+
+    .notification-card.read {
+        background:white;
+        border-left-color:#ccc;
+        opacity:0.8;
+    }
+
+    .notif-body { flex:1; }
+    .notif-title { font-weight:700; font-size:15px; color:#222; margin-bottom:4px; }
+    .notif-msg { font-size:14px; color:#444; }
+    .time { font-size:12px; color:gray; margin-top:5px; }
+
+    .notif-actions { display:flex; flex-direction:column; gap:6px; align-items:flex-end; }
+    .notif-actions button {
+        border:none; padding:5px 10px; border-radius:5px; cursor:pointer; font-size:13px;
+    }
+    .btn-read { background:#e8f4fd; color:#0a66c2; }
+    .btn-read:hover { background:#cce3f7; }
+    .btn-del { background:#ffe8e8; color:#cc0000; }
+    .btn-del:hover { background:#ffd0d0; }
+
+    #emptyMsg {
+        text-align:center;
+        padding:40px;
+        color:#888;
+        font-size:16px;
+        display:none;
+    }
+
+    #loadingMsg {
+        text-align:center;
+        padding:40px;
+        color:#666;
+    }
+</style>
+</head>
+<body>
+
+<div class="navbar">
+    <h2>🔔 HireHub Notifications</h2>
+    <button id="backBtn" onclick="goBack()">← Dashboard</button>
+</div>
+
+<div class="container">
+    <div class="toolbar">
+        <h2 id="notifHeading">Your Notifications</h2>
+        <div class="toolbar-btns">
+            <button id="markAllBtn" onclick="handleMarkAllRead()">✓ Mark All as Read</button>
+        </div>
+    </div>
+
+    <div id="loadingMsg">Loading notifications...</div>
+    <div id="notifList"></div>
+    <div id="emptyMsg">🎉 You have no notifications!</div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    // Determine back button destination by user role
+    function goBack() {
+        const role = Auth.getRole();
+        if (role === 'ADMIN') window.location.href = 'admin-dashboard.html';
+        else if (role === 'RECRUITER') window.location.href = 'recruiter-dashboard.html';
+        else window.location.href = 'dashboard.html';
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);
+    }
+
+    function timeAgo(dateStr) {
+        const now = new Date();
+        const d = new Date(dateStr);
+        const diff = Math.floor((now - d) / 1000);
+        if (diff < 60) return 'Just now';
+        if (diff < 3600) return `${Math.floor(diff/60)} min ago`;
+        if (diff < 86400) return `${Math.floor(diff/3600)} hour(s) ago`;
+        if (diff < 604800) return `${Math.floor(diff/86400)} day(s) ago`;
+        return new Date(dateStr).toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
+    }
+
+    function typeIcon(type) {
+        const icons = { APPLICATION:'📄', INTERVIEW:'📅', JOB:'💼', SYSTEM:'🔔', REVIEW:'⭐' };
+        return icons[type] || '🔔';
+    }
+
+    async function loadNotifications() {
+        const list = document.getElementById('notifList');
+        const loading = document.getElementById('loadingMsg');
+        const empty = document.getElementById('emptyMsg');
+
+        loading.style.display = 'block';
+        empty.style.display = 'none';
+        list.innerHTML = '';
+
+        try {
+            const res = await NotificationsAPI.getAll();
+            loading.style.display = 'none';
+
+            if (!res.ok || !res.data.success) {
+                list.innerHTML = '<p style="color:red;text-align:center;padding:20px;">Failed to load notifications.</p>';
+                return;
+            }
+
+            const notifs = res.data.notifications;
+            document.getElementById('notifHeading').textContent =
+                `Your Notifications (${res.data.unreadCount} unread)`;
+
+            if (!notifs || notifs.length === 0) {
+                empty.style.display = 'block';
+                return;
+            }
+
+            notifs.forEach(n => {
+                const card = document.createElement('div');
+                card.className = `notification-card ${n.isRead ? 'read' : 'unread'}`;
+                card.id = `notif-${n.id}`;
+                card.innerHTML = `
+                    <div class="notif-body">
+                        <div class="notif-title">${typeIcon(n.type)} ${escapeHtml(n.title)}</div>
+                        <div class="notif-msg">${escapeHtml(n.message)}</div>
+                        <div class="time">${timeAgo(n.createdAt)}</div>
+                    </div>
+                    <div class="notif-actions">
+                        ${!n.isRead ? `<button class="btn-read" onclick="handleMarkRead(${n.id})">Mark Read</button>` : '<span style="font-size:12px;color:#888;">✓ Read</span>'}
+                        <button class="btn-del" onclick="handleDelete(${n.id})">Delete</button>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+
+        } catch (e) {
+            loading.style.display = 'none';
+            list.innerHTML = '<p style="color:red;text-align:center;padding:20px;">Network error loading notifications.</p>';
+        }
+    }
+
+    async function handleMarkRead(id) {
+        try {
+            const res = await NotificationsAPI.markRead(id);
+            if (res.ok && res.data.success) {
+                const card = document.getElementById(`notif-${id}`);
+                if (card) {
+                    card.classList.remove('unread');
+                    card.classList.add('read');
+                    const actionsDiv = card.querySelector('.notif-actions');
+                    // Replace "Mark Read" button with a check
+                    const readBtn = actionsDiv.querySelector('.btn-read');
+                    if (readBtn) readBtn.outerHTML = '<span style="font-size:12px;color:#888;">✓ Read</span>';
+                }
+                showToast('Marked as read', 'success');
+                updateHeading();
+            }
+        } catch (e) {
+            showToast('Error marking as read', 'error');
+        }
+    }
+
+    async function handleDelete(id) {
+        try {
+            const res = await NotificationsAPI.delete(id);
+            if (res.ok && res.data.success) {
+                const card = document.getElementById(`notif-${id}`);
+                if (card) card.remove();
+                showToast('Notification deleted', 'success');
+                updateHeading();
+                if (document.querySelectorAll('.notification-card').length === 0) {
+                    document.getElementById('emptyMsg').style.display = 'block';
+                }
+            }
+        } catch (e) {
+            showToast('Error deleting notification', 'error');
+        }
+    }
+
+    async function handleMarkAllRead() {
+        const btn = document.getElementById('markAllBtn');
+        btn.disabled = true;
+        try {
+            const res = await NotificationsAPI.markAllRead();
+            if (res.ok && res.data.success) {
+                showToast('All notifications marked as read', 'success');
+                loadNotifications();
+            }
+        } catch (e) {
+            showToast('Error marking all as read', 'error');
+        }
+        btn.disabled = false;
+    }
+
+    async function updateHeading() {
+        try {
+            const res = await NotificationsAPI.getAll();
+            if (res.ok && res.data.success) {
+                document.getElementById('notifHeading').textContent =
+                    `Your Notifications (${res.data.unreadCount} unread)`;
+            }
+        } catch (e) {}
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        if (!Auth.isLoggedIn()) {
+            window.location.href = 'login.html';
+            return;
+        }
+        loadNotifications();
+    });
+</script>
+</body>
+</html>

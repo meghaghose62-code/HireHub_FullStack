@@ -1,0 +1,259 @@
+// This is your Prisma schema file for HireHub RMS
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+//  ENUMS
+// ─────────────────────────────────────────────
+
+enum Role {
+  CANDIDATE
+  RECRUITER
+  ADMIN
+}
+
+enum ApplicationStatus {
+  PENDING
+  REVIEWED
+  SHORTLISTED
+  REJECTED
+  HIRED
+}
+
+enum InterviewStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+}
+
+enum JobStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CLOSED
+}
+
+enum JobType {
+  FULL_TIME
+  PART_TIME
+  INTERNSHIP
+  REMOTE
+}
+
+enum NotificationType {
+  APPLICATION
+  INTERVIEW
+  JOB
+  SYSTEM
+  REVIEW
+}
+
+// ─────────────────────────────────────────────
+//  USER
+// ─────────────────────────────────────────────
+
+model User {
+  id           Int      @id @default(autoincrement())
+  name         String
+  email        String   @unique
+  phone        String?
+  passwordHash String
+  role         Role     @default(CANDIDATE)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  jobs          Job[]
+  applications  Application[]
+  resumes       Resume[]
+  notifications Notification[]
+  interviews    Interview[]    @relation("CandidateInterviews")
+  scheduledBy   Interview[]    @relation("RecruiterInterviews")
+  reviews       Review[]
+  savedJobs     SavedJob[]
+  reports       Report[]
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────
+//  JOB
+// ─────────────────────────────────────────────
+
+model Job {
+  id          Int       @id @default(autoincrement())
+  title       String
+  company     String
+  location    String
+  jobType     JobType   @default(FULL_TIME)
+  experience  String
+  skills      String
+  description String    @db.Text
+  salary      String?
+  status      JobStatus @default(PENDING)
+  postedAt    DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  recruiter   User @relation(fields: [recruiterId], references: [id])
+  recruiterId Int
+
+  applications Application[]
+  interviews   Interview[]
+  savedBy      SavedJob[]
+
+  @@map("jobs")
+}
+
+// ─────────────────────────────────────────────
+//  APPLICATION
+// ─────────────────────────────────────────────
+
+model Application {
+  id          Int               @id @default(autoincrement())
+  coverLetter String?           @db.Text
+  status      ApplicationStatus @default(PENDING)
+  appliedAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  candidate   User @relation(fields: [candidateId], references: [id])
+  candidateId Int
+
+  job   Job @relation(fields: [jobId], references: [id])
+  jobId Int
+
+  resume   Resume? @relation(fields: [resumeId], references: [id])
+  resumeId Int?
+
+  @@unique([candidateId, jobId])
+  @@map("applications")
+}
+
+// ─────────────────────────────────────────────
+//  RESUME
+// ─────────────────────────────────────────────
+
+model Resume {
+  id         Int      @id @default(autoincrement())
+  fileName   String
+  filePath   String
+  fileSize   Int?
+  uploadedAt DateTime @default(now())
+
+  user   User @relation(fields: [userId], references: [id])
+  userId Int
+
+  applications Application[]
+
+  @@map("resumes")
+}
+
+// ─────────────────────────────────────────────
+//  INTERVIEW
+// ─────────────────────────────────────────────
+
+model Interview {
+  id              Int             @id @default(autoincrement())
+  scheduledAt     DateTime
+  location        String?
+  mode            String          @default("Online")
+  notes           String?         @db.Text
+  status          InterviewStatus @default(SCHEDULED)
+  feedback        String?         @db.Text
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  candidate   User @relation("CandidateInterviews", fields: [candidateId], references: [id])
+  candidateId Int
+
+  recruiter   User @relation("RecruiterInterviews", fields: [recruiterId], references: [id])
+  recruiterId Int
+
+  job   Job @relation(fields: [jobId], references: [id])
+  jobId Int
+
+  @@map("interviews")
+}
+
+// ─────────────────────────────────────────────
+//  NOTIFICATION
+// ─────────────────────────────────────────────
+
+model Notification {
+  id        Int              @id @default(autoincrement())
+  title     String
+  message   String           @db.Text
+  type      NotificationType @default(SYSTEM)
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user   User @relation(fields: [userId], references: [id])
+  userId Int
+
+  @@map("notifications")
+}
+
+// ─────────────────────────────────────────────
+//  REVIEW (Company Review)
+// ─────────────────────────────────────────────
+
+model Review {
+  id          Int      @id @default(autoincrement())
+  company     String
+  rating      Int      // 1-5
+  title       String
+  description String   @db.Text
+  pros        String?  @db.Text
+  cons        String?  @db.Text
+  recommend   Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  author   User @relation(fields: [authorId], references: [id])
+  authorId Int
+
+  @@map("reviews")
+}
+
+// ─────────────────────────────────────────────
+//  SAVED JOB
+// ─────────────────────────────────────────────
+
+model SavedJob {
+  id      Int      @id @default(autoincrement())
+  savedAt DateTime @default(now())
+
+  user   User @relation(fields: [userId], references: [id])
+  userId Int
+
+  job   Job @relation(fields: [jobId], references: [id])
+  jobId Int
+
+  @@unique([userId, jobId])
+  @@map("saved_jobs")
+}
+
+// ─────────────────────────────────────────────
+//  REPORT
+// ─────────────────────────────────────────────
+
+model Report {
+  id          Int      @id @default(autoincrement())
+  type        String   // "application", "job", "user", "interview"
+  title       String
+  description String?  @db.Text
+  data        Json?
+  createdAt   DateTime @default(now())
+
+  generatedBy   User @relation(fields: [generatedById], references: [id])
+  generatedById Int
+
+  @@map("reports")
+}

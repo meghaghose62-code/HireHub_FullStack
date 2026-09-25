@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Application Report - HireHub</title>
+
+<style>
+ * { margin:0; padding:0; box-sizing:border-box; font-family:Poppins, sans-serif; }
+ body { background:#f5f6fa; display:flex; flex-direction:column; min-height:100vh; }
+
+ .navbar {
+     background:#0a66c2;
+     padding:15px 30px;
+     color:white;
+     display:flex;
+     justify-content:space-between;
+     align-items:center;
+     box-shadow:0 2px 6px rgba(0,0,0,0.15);
+ }
+ .navbar h2 { font-size:22px; }
+ .navbar button {
+     background:white;
+     color:#0a66c2;
+     border:none;
+     padding:8px 16px;
+     border-radius:6px;
+     cursor:pointer;
+     font-weight:600;
+     transition:0.2s;
+ }
+ .navbar button:hover { background:#e8f0ff; }
+
+ .content { flex:1; padding:30px; }
+
+ .report-box {
+     background:white;
+     padding:22px;
+     border-radius:10px;
+     box-shadow:0 2px 8px rgba(0,0,0,0.1);
+ }
+
+ .table-responsive {
+     overflow-x: auto;
+     margin-top: 15px;
+ }
+
+ table { width:100%; border-collapse:collapse; }
+ table, th, td { border:1px solid #ddd; }
+ th, td { padding:12px; text-align:left; font-size:14px; }
+ th { background:#0a66c2; color:white; font-weight:600; }
+ tr:hover { background: #f9fbff; }
+
+ .status-shortlisted { color: #27ae60; font-weight: 600; }
+ .status-rejected { color: #e74c3c; font-weight: 600; }
+ .status-pending { color: #f39c12; font-weight: 600; }
+ .status-reviewed { color: #8e44ad; font-weight: 600; }
+ .status-hired { color: #2980b9; font-weight: 600; }
+</style>
+</head>
+
+<body>
+
+<div class="navbar">
+    <h2>📩 Application Report</h2>
+    <div style="display:flex;gap:10px;">
+        <button onclick="location.href='report-analysis.html'">📊 Reports Menu</button>
+        <button onclick="location.href='admin-dashboard.html'">⬅ Back to dashboard</button>
+    </div>
+</div>
+
+<div class="content">
+  <div class="report-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <h3>Job Applications</h3>
+        <span id="appCountBadge" style="font-size:14px;color:#555;font-weight:500;"></span>
+    </div>
+
+    <div class="table-responsive">
+        <table>
+          <thead>
+              <tr>
+                <th>ID</th>
+                <th>Candidate</th>
+                <th>Candidate Email</th>
+                <th>Job Applied</th>
+                <th>Company</th>
+                <th>Applied Date</th>
+                <th>Status</th>
+              </tr>
+          </thead>
+          <tbody id="applicationRows">
+              <tr><td colspan="7" style="text-align:center;color:#888;">Loading applications from database...</td></tr>
+          </tbody>
+        </table>
+    </div>
+
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    window.addEventListener('DOMContentLoaded', async () => {
+        if (!requireAuth('ADMIN')) return;
+
+        try {
+            const res = await ReportsAPI.applicationReport({});
+            const tbody = document.getElementById('applicationRows');
+
+            if (res.ok && res.data.success && res.data.applications) {
+                const apps = res.data.applications;
+                document.getElementById('appCountBadge').textContent = `Total: ${apps.length} applications`;
+
+                if (apps.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#888;">No applications submitted yet.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = apps.map(a => {
+                    let statusClass = 'status-pending';
+                    if (a.status === 'SHORTLISTED') statusClass = 'status-shortlisted';
+                    else if (a.status === 'REJECTED') statusClass = 'status-rejected';
+                    else if (a.status === 'REVIEWED') statusClass = 'status-reviewed';
+                    else if (a.status === 'HIRED') statusClass = 'status-hired';
+
+                    const candName = a.candidate ? a.candidate.name : 'Unknown';
+                    const candEmail = a.candidate ? a.candidate.email : 'N/A';
+                    const jobTitle = a.job ? a.job.title : 'Deleted Job';
+                    const company = a.job ? a.job.company : 'N/A';
+
+                    return `
+                        <tr>
+                            <td>${a.id}</td>
+                            <td><strong>${escapeHtml(candName)}</strong></td>
+                            <td>${escapeHtml(candEmail)}</td>
+                            <td>${escapeHtml(jobTitle)}</td>
+                            <td>${escapeHtml(company)}</td>
+                            <td>${formatDate(a.appliedAt)}</td>
+                            <td class="${statusClass}">${a.status}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:red;">Error loading applications.</td></tr>';
+            }
+        } catch (err) {
+            console.error('Error fetching application report:', err);
+            document.getElementById('applicationRows').innerHTML = '<tr><td colspan="7" style="text-align:center;color:red;">Failed to connect to server.</td></tr>';
+        }
+    });
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+</script>
+
+</body>
+</html>

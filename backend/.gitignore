@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Environment Variables - NEVER commit this
+.env
+
+# Prisma generated files
+prisma/migrations/
+
+# Uploads
+uploads/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db

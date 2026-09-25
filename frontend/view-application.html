@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HireHub - View Application</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; font-family:Poppins,sans-serif; }
+    body { background:#f5f6fa; }
+
+    .navbar {
+        background:#0a66c2;
+        padding:15px 30px;
+        color:white;
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+    }
+    .navbar h2 { font-size:22px; }
+    .navbar button {
+        background:white;
+        color:#0a66c2;
+        border:none;
+        padding:8px 16px;
+        border-radius:6px;
+        cursor:pointer;
+        font-weight:600;
+    }
+
+    .container {
+        max-width:900px;
+        margin:20px auto;
+        background:white;
+        border-radius:8px;
+        box-shadow:0 1px 6px rgba(0,0,0,0.1);
+        padding:25px;
+    }
+
+    h3 {
+        color:#0a66c2;
+        margin-bottom:15px;
+        font-size:22px;
+    }
+
+    .info-grid {
+        display:grid;
+        grid-template-columns:1fr 1fr;
+        gap:15px;
+        margin-bottom:20px;
+    }
+
+    .info-item { margin-bottom:10px; }
+    .info-item label {
+        font-weight:600;
+        display:block;
+        margin-bottom:5px;
+        color:#333;
+        font-size:13px;
+        text-transform:uppercase;
+        letter-spacing:0.5px;
+    }
+    .info-item p {
+        color:#444;
+        font-size:15px;
+        background:#f5f5f5;
+        padding:8px 12px;
+        border-radius:5px;
+    }
+
+    .status-badge {
+        display:inline-block;
+        padding:4px 12px;
+        border-radius:12px;
+        font-size:13px;
+        font-weight:700;
+    }
+    .status-PENDING { background:#fff3cd; color:#856404; }
+    .status-REVIEWED { background:#cce5ff; color:#004085; }
+    .status-SHORTLISTED { background:#d4edda; color:#155724; }
+    .status-REJECTED { background:#f8d7da; color:#721c24; }
+    .status-HIRED { background:#d1ecf1; color:#0c5460; }
+
+    .cover-letter {
+        background:#f9f9f9;
+        border-left:4px solid #0a66c2;
+        padding:15px;
+        border-radius:4px;
+        margin-bottom:20px;
+        font-size:14px;
+        color:#333;
+        line-height:1.6;
+    }
+
+    .buttons { display:flex; gap:12px; flex-wrap:wrap; margin-top:20px; }
+    .buttons button {
+        padding:10px 18px;
+        border:none;
+        border-radius:6px;
+        cursor:pointer;
+        color:white;
+        font-weight:600;
+        font-size:14px;
+    }
+    .btn-shortlist { background:#27ae60; }
+    .btn-shortlist:hover { background:#1e8449; }
+    .btn-interview { background:#007bff; }
+    .btn-interview:hover { background:#0056b3; }
+    .btn-hired { background:#6f42c1; }
+    .btn-reject { background:#e74c3c; }
+    .btn-reject:hover { background:#c0392b; }
+    .btn-resume { background:#17a2b8; }
+
+    #loadingMsg { text-align:center; padding:40px; color:#666; }
+    #errorMsg { text-align:center; padding:40px; color:red; display:none; }
+
+    @media(max-width:600px){
+        .info-grid { grid-template-columns:1fr; }
+    }
+</style>
+</head>
+<body>
+
+<div class="navbar">
+    <h2>HireHub - Candidate Application</h2>
+    <button onclick="history.back()">← Go Back</button>
+</div>
+
+<div class="container">
+    <div id="loadingMsg">Loading application...</div>
+    <div id="errorMsg"></div>
+    <div id="appContent" style="display:none;">
+        <h3>📄 Candidate Details</h3>
+
+        <div class="info-grid">
+            <div class="info-item">
+                <label>Name</label>
+                <p id="candidateName">-</p>
+            </div>
+            <div class="info-item">
+                <label>Email</label>
+                <p id="candidateEmail">-</p>
+            </div>
+            <div class="info-item">
+                <label>Phone</label>
+                <p id="candidatePhone">-</p>
+            </div>
+            <div class="info-item">
+                <label>Applied For</label>
+                <p id="appliedJob">-</p>
+            </div>
+            <div class="info-item">
+                <label>Company</label>
+                <p id="appliedCompany">-</p>
+            </div>
+            <div class="info-item">
+                <label>Applied On</label>
+                <p id="appliedDate">-</p>
+            </div>
+            <div class="info-item">
+                <label>Current Status</label>
+                <p id="appStatus">-</p>
+            </div>
+            <div class="info-item">
+                <label>Resume</label>
+                <p id="resumeInfo">-</p>
+            </div>
+        </div>
+
+        <div id="coverLetterSection" style="display:none;">
+            <h3 style="font-size:16px;margin-bottom:8px;">📝 Cover Letter</h3>
+            <div class="cover-letter" id="coverLetterText"></div>
+        </div>
+
+        <div class="buttons" id="actionButtons">
+            <button class="btn-shortlist" id="btnShortlist" onclick="updateStatus('SHORTLISTED')">✅ Shortlist</button>
+            <button class="btn-interview" id="btnInterview" onclick="goScheduleInterview()">📅 Schedule Interview</button>
+            <button class="btn-hired" id="btnHired" onclick="updateStatus('HIRED')">🎉 Mark as Hired</button>
+            <button class="btn-reject" id="btnReject" onclick="updateStatus('REJECTED')">❌ Reject</button>
+        </div>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    let currentApp = null;
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);
+    }
+
+    async function loadApplication() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const appId = urlParams.get('id') || urlParams.get('appId');
+
+        if (!appId) {
+            document.getElementById('loadingMsg').style.display = 'none';
+            document.getElementById('errorMsg').style.display = 'block';
+            document.getElementById('errorMsg').textContent = 'No application ID provided. Please navigate from the applications list.';
+            return;
+        }
+
+        try {
+            const res = await ApplicationsAPI.getById(appId);
+            document.getElementById('loadingMsg').style.display = 'none';
+
+            if (!res.ok || !res.data.success) {
+                document.getElementById('errorMsg').style.display = 'block';
+                document.getElementById('errorMsg').textContent = res.data.message || 'Application not found.';
+                return;
+            }
+
+            currentApp = res.data.application;
+            renderApplication(currentApp);
+            document.getElementById('appContent').style.display = 'block';
+
+        } catch (e) {
+            document.getElementById('loadingMsg').style.display = 'none';
+            document.getElementById('errorMsg').style.display = 'block';
+            document.getElementById('errorMsg').textContent = 'Network error loading application.';
+        }
+    }
+
+    function renderApplication(app) {
+        const candidate = app.candidate || {};
+        const job = app.job || {};
+
+        document.getElementById('candidateName').textContent = candidate.name || '-';
+        document.getElementById('candidateEmail').textContent = candidate.email || '-';
+        document.getElementById('candidatePhone').textContent = candidate.phone || 'Not provided';
+        document.getElementById('appliedJob').textContent = job.title || '-';
+        document.getElementById('appliedCompany').textContent = job.company || '-';
+        document.getElementById('appliedDate').textContent = new Date(app.appliedAt).toLocaleDateString('en-IN', {
+            day: 'numeric', month: 'long', year: 'numeric'
+        });
+
+        // Status badge
+        const statusLabels = {
+            PENDING: '⏳ Pending',
+            REVIEWED: '👀 Reviewed',
+            SHORTLISTED: '✅ Shortlisted',
+            REJECTED: '❌ Rejected',
+            HIRED: '🎉 Hired'
+        };
+        document.getElementById('appStatus').innerHTML =
+            `<span class="status-badge status-${app.status}">${statusLabels[app.status] || app.status}</span>`;
+
+        // Resume
+        if (app.resume) {
+            document.getElementById('resumeInfo').innerHTML =
+                `<a href="${escapeHtml(app.resume.filePath)}" target="_blank" class="btn-resume" style="color:white;padding:5px 12px;border-radius:5px;text-decoration:none;font-weight:600;background:#17a2b8;display:inline-block;">📎 View Resume</a>`;
+        } else {
+            document.getElementById('resumeInfo').textContent = 'No resume attached';
+        }
+
+        // Cover letter
+        if (app.coverLetter) {
+            document.getElementById('coverLetterSection').style.display = 'block';
+            document.getElementById('coverLetterText').textContent = app.coverLetter;
+        }
+    }
+
+    async function updateStatus(status) {
+        if (!currentApp) return;
+        const confirmMsgs = {
+            SHORTLISTED: 'Shortlist this candidate?',
+            REJECTED: 'Reject this application?',
+            HIRED: 'Mark this candidate as HIRED?'
+        };
+        if (!confirm(confirmMsgs[status] || `Set status to ${status}?`)) return;
+
+        try {
+            const res = await ApplicationsAPI.updateStatus(currentApp.id, status);
+            if (res.ok && res.data.success) {
+                showToast(`Status updated to ${status}`, 'success');
+                currentApp.status = status;
+                const statusLabels = {
+                    PENDING: '⏳ Pending', REVIEWED: '👀 Reviewed',
+                    SHORTLISTED: '✅ Shortlisted', REJECTED: '❌ Rejected', HIRED: '🎉 Hired'
+                };
+                document.getElementById('appStatus').innerHTML =
+                    `<span class="status-badge status-${status}">${statusLabels[status] || status}</span>`;
+            } else {
+                showToast(res.data.message || 'Failed to update status', 'error');
+            }
+        } catch (e) {
+            showToast('Network error updating status', 'error');
+        }
+    }
+
+    function goScheduleInterview() {
+        if (!currentApp) return;
+        const candidateId = currentApp.candidateId || currentApp.candidate?.id;
+        const jobId = currentApp.jobId || currentApp.job?.id;
+        window.location.href = `schedule-interview.html?applicationId=${currentApp.id}&candidateId=${candidateId}&jobId=${jobId}`;
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        if (!Auth.isLoggedIn()) { window.location.href = 'login.html'; return; }
+        loadApplication();
+    });
+</script>
+</body>
+</html>

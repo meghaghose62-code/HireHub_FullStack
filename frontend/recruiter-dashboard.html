@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HireHub - Recruiter Dashboard</title>
+
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; font-family:Poppins,sans-serif; }
+
+    body { background:#f5f6fa; }
+
+    /* NAVBAR */
+    .navbar {
+        background:#0a66c2;
+        padding:15px 30px;
+        color:white;
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+    }
+    .navbar h2 { font-size:26px; font-weight:700; }
+    .navbar button {
+        background:white; color:#0a66c2; border:none;
+        padding:10px 20px; border-radius:6px; cursor:pointer; font-weight:600;
+        font-size:15px;
+    }
+
+    /* LAYOUT */
+    .container {
+        display:grid;
+        grid-template-columns:260px 1fr;
+        height:calc(100vh - 60px);
+    }
+
+    /* ✅ UPDATED SIDEBAR COLORS (GRADIENT + HIGHLIGHTING) */
+    .sidebar {
+        background: linear-gradient(180deg, #1b2b5b, #3a4f93);
+        padding:25px;
+        color:white;
+        border-right:2px solid rgba(255,255,255,0.2);
+    }
+
+    .sidebar h3 {
+        margin-bottom:25px;
+        font-size:22px;
+        font-weight:700;
+        color:#ffd36b;
+        text-shadow:0 0 8px rgba(0,0,0,0.4);
+    }
+
+    .sidebar a {
+        display:block;
+        padding:14px;
+        margin-bottom:12px;
+        border-radius:8px;
+        font-weight:600;
+        text-decoration:none;
+        color:#ffffff;
+        background:rgba(255,255,255,0.15);
+        transition:0.3s;
+    }
+
+    .sidebar a:hover {
+        background:#ffd36b;
+        color:#1b2b5b;
+        transform:translateX(6px);
+        font-weight:700;
+    }
+
+    /* MAIN CONTENT BACKGROUND */
+    .content {
+        background: url('images/dashboard-bg.jpg') no-repeat center center/cover;
+        padding:40px;
+        position:relative;
+        overflow-y:auto;
+    }
+
+    .overlay {
+        background: rgba(0,0,0,0.45);
+        position:absolute;
+        top:0; left:0;
+        width:100%; height:100%;
+        z-index:1;
+    }
+
+    .content-inner {
+        position:relative;
+        z-index:2;
+        color:white;
+    }
+
+    /* WELCOME CARD */
+    .welcome-card {
+        background:rgba(255,255,255,0.18);
+        padding:30px;
+        border-radius:12px;
+        backdrop-filter: blur(6px);
+        margin-bottom:30px;
+        color:white;
+        border-left:5px solid #ffd36b;
+    }
+
+    .welcome-card h2 {
+        font-size:40px;
+        font-weight:900;
+        margin-bottom:10px;
+        color:#ffd36b;
+        text-shadow:0 0 10px rgba(0,0,0,0.6);
+    }
+
+    /* STATS */
+    .stats-container {
+        display:flex;
+        gap:30px;
+        margin-top:20px;
+    }
+
+    .stat-box {
+        background:rgba(255,255,255,0.17);
+        padding:30px;
+        flex:1;
+        text-align:center;
+        border-radius:12px;
+        box-shadow:0 2px 10px rgba(0,0,0,0.3);
+        backdrop-filter: blur(6px);
+        border-top:5px solid #ffd36b;
+    }
+
+    .stat-box h3 {
+        font-size:28px;
+        font-weight:700;
+        color:#ffe8b3;
+        text-transform:uppercase;
+        text-shadow:0 0 6px rgba(0,0,0,0.4);
+    }
+
+    .stat-box p {
+        font-size:75px;
+        font-weight:900;
+        color:white;
+        text-shadow:0 0 12px rgba(0,0,0,0.6);
+    }
+
+    @media(max-width:768px){
+        .container { grid-template-columns:1fr; }
+        .stats-container { flex-direction:column; }
+    }
+</style>
+</head>
+
+<body>
+
+<!-- NAVBAR -->
+<div class="navbar">
+    <h2>HireHub Recruiter Dashboard</h2>
+    <div style="display:flex;align-items:center;gap:15px;">
+        <span id="recruiterNameDisplay" style="font-weight:600;font-size:15px;color:white;"></span>
+        <button onclick="handleLogout()">Logout</button>
+    </div>
+</div>
+
+<div class="container">
+
+    <!-- ✅ Updated Sidebar -->
+    <div class="sidebar">
+        <h3>Recruiter Menu</h3>
+        <a href="post-job.html">➕ Post a Job</a>
+        <a href="edit-job.html">📊 Manage Job Postings</a>
+        <a href="applications.html">📄 View Applications</a>
+        <a href="interview-feedback.html">📅 Interviews & Feedback</a>
+        <a href="notifications.html">🔔 Notifications <span id="recruiterUnreadBadge" style="display:none;background:#ff4d4d;color:white;padding:2px 6px;border-radius:10px;font-size:11px;margin-left:5px;"></span></a>
+    </div>
+
+    <!-- ✅ Main Content -->
+    <div class="content">
+        <div class="overlay"></div>
+
+        <div class="content-inner">
+
+            <!-- Welcome -->
+            <div class="welcome-card">
+                <h2 id="recruiterWelcomeTitle">Welcome, Recruiter!</h2>
+                <p id="recruiterWelcomeSub" style="font-size:20px;">
+                    Manage job postings, review applications, and schedule interviews—everything in one place.
+                </p>
+            </div>
+
+            <!-- Stats -->
+            <div class="stats-container">
+
+                <div class="stat-box">
+                    <h3>Total Jobs Posted</h3>
+                    <p id="statMyJobs">0</p>
+                </div>
+
+                <div class="stat-box">
+                    <h3>Applications Received</h3>
+                    <p id="statRecruiterApps">0</p>
+                </div>
+
+                <div class="stat-box">
+                    <h3>Interviews Scheduled</h3>
+                    <p id="statRecruiterInterviews">0</p>
+                </div>
+
+            </div>
+
+        </div>
+    </div>
+
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    function handleLogout() {
+        Auth.clearSession();
+        window.location.href = 'login.html';
+    }
+
+    window.addEventListener('DOMContentLoaded', async () => {
+        if (!requireAuth('RECRUITER')) return;
+
+        const user = Auth.getUser();
+        if (user && user.name) {
+            document.getElementById('recruiterNameDisplay').textContent = user.name;
+            document.getElementById('recruiterWelcomeTitle').textContent = `Welcome, ${user.name}!`;
+            document.getElementById('recruiterWelcomeSub').textContent = `Connected as ${user.email} (Recruiter)`;
+        }
+
+        // Fetch real stats
+        try {
+            const res = await ReportsAPI.recruiterStats();
+            if (res.ok && res.data.success) {
+                const s = res.data.stats;
+                document.getElementById('statMyJobs').textContent = s.myJobs !== undefined ? s.myJobs : 0;
+                document.getElementById('statRecruiterApps').textContent = s.totalApplications !== undefined ? s.totalApplications : 0;
+                document.getElementById('statRecruiterInterviews').textContent = s.totalInterviews !== undefined ? s.totalInterviews : 0;
+            }
+        } catch (err) {
+            console.warn('Failed to load recruiter stats:', err);
+        }
+
+        // Check notifications
+        try {
+            const notifRes = await NotificationsAPI.getAll();
+            if (notifRes.ok && notifRes.data.unreadCount > 0) {
+                const badge = document.getElementById('recruiterUnreadBadge');
+                badge.textContent = notifRes.data.unreadCount;
+                badge.style.display = 'inline';
+            }
+        } catch (e) {}
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HireHub - Interviews & Feedback</title>
+<style>
+    * { margin:0; padding:0; font-family:Poppins,sans-serif; box-sizing:border-box; }
+    body { background:#f5f6fa; }
+
+    .navbar {
+        background:#0a66c2;
+        padding:15px 30px;
+        color:white;
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+    }
+    .navbar h2 { font-size:22px; }
+    .navbar button {
+        background:white; color:#0a66c2; border:none;
+        padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:600;
+    }
+
+    .container { padding:25px; max-width:900px; margin:0 auto; }
+    .page-title { color:#0a66c2; margin-bottom:20px; font-size:22px; }
+
+    .interview-card {
+        background:white;
+        padding:18px 20px;
+        border-radius:8px;
+        box-shadow:0 1px 4px rgba(0,0,0,0.1);
+        margin-bottom:20px;
+        border-left:5px solid #0a66c2;
+    }
+
+    .interview-card h3 { color:#0a66c2; font-size:18px; margin-bottom:6px; }
+    .interview-card p { margin:5px 0; color:#333; font-size:14px; }
+
+    .badge {
+        display:inline-block;
+        padding:3px 10px;
+        border-radius:12px;
+        font-size:12px;
+        font-weight:700;
+        margin-bottom:8px;
+    }
+    .badge-SCHEDULED { background:#d4edda; color:#155724; }
+    .badge-COMPLETED { background:#cce5ff; color:#004085; }
+    .badge-CANCELLED { background:#f8d7da; color:#721c24; }
+
+    .feedback-box {
+        background:#f0f7ff;
+        border-left:3px solid #0a66c2;
+        padding:10px 14px;
+        border-radius:4px;
+        margin-top:10px;
+        font-size:14px;
+        color:#333;
+    }
+
+    .upcoming-badge {
+        background:#e3f2fd;
+        color:#1565c0;
+        font-size:12px;
+        font-weight:700;
+        padding:2px 8px;
+        border-radius:10px;
+        margin-left:8px;
+    }
+
+    .feedback-form {
+        margin-top:14px;
+        padding-top:14px;
+        border-top:1px dashed #ddd;
+    }
+    .feedback-form textarea {
+        width:100%;
+        padding:8px 10px;
+        border:1px solid #ccc;
+        border-radius:6px;
+        font-family:Poppins,sans-serif;
+        font-size:14px;
+        margin-top:6px;
+    }
+    .feedback-form select {
+        padding:8px 10px;
+        border:1px solid #ccc;
+        border-radius:6px;
+        font-size:14px;
+        margin-top:6px;
+    }
+    .feedback-form button {
+        background:#0a66c2;
+        color:white;
+        border:none;
+        padding:8px 16px;
+        border-radius:6px;
+        cursor:pointer;
+        font-weight:600;
+        margin-top:8px;
+    }
+
+    #loadingMsg { text-align:center; padding:40px; color:#666; }
+    #emptyMsg { text-align:center; padding:40px; color:#888; display:none; font-size:15px; }
+</style>
+</head>
+<body>
+
+<div class="navbar">
+    <h2>📅 Interviews & Feedback</h2>
+    <button id="navBackBtn" onclick="goBackDashboard()">Dashboard</button>
+</div>
+
+<div class="container">
+    <h2 class="page-title" id="pageHeading">Interviews & Feedback</h2>
+
+    <div id="loadingMsg">Loading interviews...</div>
+    <div id="interviewList"></div>
+    <div id="emptyMsg">
+        📭 No interviews scheduled yet.
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    let userRole = null;
+
+    function goBackDashboard() {
+        if (userRole === 'RECRUITER') window.location.href = 'recruiter-dashboard.html';
+        else if (userRole === 'ADMIN') window.location.href = 'admin-dashboard.html';
+        else window.location.href = 'dashboard.html';
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);
+    }
+
+    function isUpcoming(dateStr) {
+        return new Date(dateStr) > new Date();
+    }
+
+    async function loadInterviews() {
+        const list = document.getElementById('interviewList');
+        const loading = document.getElementById('loadingMsg');
+        const empty = document.getElementById('emptyMsg');
+
+        loading.style.display = 'block';
+        list.innerHTML = '';
+        empty.style.display = 'none';
+
+        try {
+            let res;
+            if (userRole === 'RECRUITER' || userRole === 'ADMIN') {
+                document.getElementById('pageHeading').textContent = '📋 Scheduled Interviews & Candidate Feedback';
+                res = await InterviewsAPI.getRecruiterInterviews();
+            } else {
+                document.getElementById('pageHeading').textContent = 'My Interviews & Feedback';
+                res = await InterviewsAPI.getMine();
+            }
+
+            loading.style.display = 'none';
+
+            if (!res.ok || !res.data.success) {
+                list.innerHTML = '<p style="color:red;text-align:center;padding:20px;">Failed to load interviews.</p>';
+                return;
+            }
+
+            const interviews = res.data.interviews;
+            if (!interviews || interviews.length === 0) {
+                empty.style.display = 'block';
+                return;
+            }
+
+            interviews.forEach(iv => {
+                const job = iv.job || {};
+                const recruiter = iv.recruiter || {};
+                const candidate = iv.candidate || {};
+                const scheduledDate = new Date(iv.scheduledAt).toLocaleString('en-IN', {
+                    dateStyle: 'full', timeStyle: 'short', timeZone: 'Asia/Kolkata'
+                });
+                const upcoming = isUpcoming(iv.scheduledAt);
+
+                const card = document.createElement('div');
+                card.className = 'interview-card';
+                card.id = `interview-${iv.id}`;
+
+                let cardContent = `
+                    <span class="badge badge-${iv.status}" id="badge-${iv.id}">${iv.status}</span>
+                    ${upcoming && iv.status === 'SCHEDULED' ? '<span class="upcoming-badge">🔔 Upcoming</span>' : ''}
+                    <h3>${escapeHtml(job.title || 'Interview')}</h3>
+                    <p>🏢 <strong>${escapeHtml(job.company || '')}</strong></p>
+                `;
+
+                if (userRole === 'RECRUITER' || userRole === 'ADMIN') {
+                    cardContent += `
+                        <p>👤 <strong>Candidate:</strong> ${escapeHtml(candidate.name || 'Candidate')} (${escapeHtml(candidate.email || '')})</p>
+                    `;
+                } else {
+                    cardContent += `
+                        <p>👤 <strong>Recruiter:</strong> ${escapeHtml(recruiter.name || 'Recruiter')} (${escapeHtml(recruiter.email || '')})</p>
+                    `;
+                }
+
+                cardContent += `
+                    <p>📅 <strong>Scheduled:</strong> ${scheduledDate}</p>
+                    <p>💻 <strong>Mode:</strong> ${escapeHtml(iv.mode || 'Online')}</p>
+                    ${iv.location ? `<p>📌 <strong>Location/Link:</strong> ${escapeHtml(iv.location)}</p>` : ''}
+                    ${iv.notes ? `<p>📝 <strong>Notes:</strong> ${escapeHtml(iv.notes)}</p>` : ''}
+                `;
+
+                if (iv.feedback) {
+                    cardContent += `
+                        <div class="feedback-box" id="feedback-box-${iv.id}">
+                            <strong>📋 Feedback:</strong><br>
+                            <span>${escapeHtml(iv.feedback)}</span>
+                        </div>
+                    `;
+                } else if (userRole === 'CANDIDATE') {
+                    cardContent += (iv.status === 'COMPLETED' ? '<p style="color:#888;font-size:13px;margin-top:8px;">⏳ Awaiting feedback from recruiter...</p>' : '');
+                }
+
+                // If Recruiter, add feedback form
+                if (userRole === 'RECRUITER' || userRole === 'ADMIN') {
+                    cardContent += `
+                        <div class="feedback-form">
+                            <label style="font-weight:600;font-size:13px;color:#0a66c2;">✏️ Submit / Update Interview Feedback & Result:</label>
+                            <textarea id="feedback-input-${iv.id}" rows="2" placeholder="Enter evaluation notes, technical score, or remarks...">${escapeHtml(iv.feedback || '')}</textarea>
+                            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:6px;">
+                                <label style="font-size:13px;">Status:</label>
+                                <select id="status-select-${iv.id}">
+                                    <option value="COMPLETED" ${iv.status === 'COMPLETED' ? 'selected' : ''}>Completed</option>
+                                    <option value="SCHEDULED" ${iv.status === 'SCHEDULED' ? 'selected' : ''}>Scheduled</option>
+                                    <option value="CANCELLED" ${iv.status === 'CANCELLED' ? 'selected' : ''}>Cancelled</option>
+                                </select>
+                                <label style="font-size:13px;">Application Status:</label>
+                                <select id="app-status-select-${iv.id}">
+                                    <option value="">Keep Current</option>
+                                    <option value="SHORTLISTED">Shortlisted</option>
+                                    <option value="HIRED">Hired</option>
+                                    <option value="REJECTED">Rejected</option>
+                                </select>
+                                <button onclick="submitFeedback(${iv.id}, this)">Save Feedback</button>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                card.innerHTML = cardContent;
+                list.appendChild(card);
+            });
+
+        } catch (e) {
+            loading.style.display = 'none';
+            list.innerHTML = '<p style="color:red;text-align:center;padding:20px;">Network error loading interviews.</p>';
+        }
+    }
+
+    async function submitFeedback(interviewId, btn) {
+        const feedbackInput = document.getElementById(`feedback-input-${interviewId}`);
+        const statusSelect = document.getElementById(`status-select-${interviewId}`);
+        const appStatusSelect = document.getElementById(`app-status-select-${interviewId}`);
+
+        const feedback = feedbackInput ? feedbackInput.value.trim() : '';
+        const status = statusSelect ? statusSelect.value : 'COMPLETED';
+        const applicationStatus = appStatusSelect ? appStatusSelect.value : '';
+
+        const origText = btn.textContent;
+        btn.textContent = 'Saving...';
+        btn.disabled = true;
+
+        try {
+            const payload = { status, feedback };
+            if (applicationStatus) payload.applicationStatus = applicationStatus;
+
+            const res = await InterviewsAPI.update(interviewId, payload);
+            if (res.ok && res.data.success) {
+                showToast('Interview feedback saved successfully!', 'success');
+                btn.textContent = '✓ Saved';
+                // Update badge
+                const badge = document.getElementById(`badge-${interviewId}`);
+                if (badge) {
+                    badge.className = `badge badge-${status}`;
+                    badge.textContent = status;
+                }
+                setTimeout(() => { btn.textContent = origText; btn.disabled = false; }, 2000);
+            } else {
+                showToast(res.data.message || 'Failed to save feedback', 'error');
+                btn.textContent = origText;
+                btn.disabled = false;
+            }
+        } catch (e) {
+            showToast('Network error saving feedback', 'error');
+            btn.textContent = origText;
+            btn.disabled = false;
+        }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        if (!Auth.isLoggedIn()) {
+            window.location.href = 'login.html';
+            return;
+        }
+        userRole = Auth.getRole();
+        loadInterviews();
+    });
+</script>
+</body>
+</html>

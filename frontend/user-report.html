@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>User Report - HireHub</title>
+
+<style>
+ * { margin:0; padding:0; box-sizing:border-box; font-family:Poppins, sans-serif; }
+ body { background:#f5f6fa; display:flex; flex-direction:column; min-height:100vh; }
+
+ .navbar {
+     background:#0a66c2;
+     padding:15px 30px;
+     color:white;
+     display:flex;
+     justify-content:space-between;
+     align-items:center;
+     box-shadow:0 2px 6px rgba(0,0,0,0.15);
+ }
+ .navbar h2 { font-size:22px; }
+ .navbar button {
+     background:white;
+     color:#0a66c2;
+     border:none;
+     padding:8px 16px;
+     border-radius:6px;
+     cursor:pointer;
+     font-weight:600;
+     transition:0.2s;
+ }
+ .navbar button:hover { background:#e8f0ff; }
+
+ .content { flex:1; padding:30px; }
+
+ .report-box {
+     background:white;
+     padding:22px;
+     border-radius:10px;
+     box-shadow:0 2px 8px rgba(0,0,0,0.1);
+ }
+
+ .table-responsive {
+     overflow-x: auto;
+     margin-top: 15px;
+ }
+
+ table { width:100%; border-collapse:collapse; }
+ table, th, td { border:1px solid #ddd; }
+ th, td { padding:12px; text-align:left; font-size:14px; }
+ th { background:#0a66c2; color:white; font-weight:600; }
+ tr:hover { background: #f9fbff; }
+
+ .badge {
+     display: inline-block;
+     padding: 3px 8px;
+     border-radius: 4px;
+     font-size: 12px;
+     font-weight: 600;
+ }
+ .badge-admin { background: #e2e8f0; color: #2d3748; }
+ .badge-recruiter { background: #ebf8ff; color: #2b6cb0; }
+ .badge-candidate { background: #e6fffa; color: #234e52; }
+ .status-active { color: #27ae60; font-weight: 600; }
+ .status-blocked { color: #e53e3e; font-weight: 600; }
+</style>
+</head>
+
+<body>
+
+<div class="navbar">
+    <h2>👤 User Report</h2>
+    <div style="display:flex;gap:10px;">
+        <button onclick="location.href='report-analysis.html'">📊 Reports Menu</button>
+        <button onclick="location.href='admin-dashboard.html'">⬅ Back to dashboard</button>
+    </div>
+</div>
+
+<div class="content">
+  <div class="report-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <h3 id="reportTitle">Registered Users</h3>
+        <span id="userCountBadge" style="font-size:14px;color:#555;font-weight:500;"></span>
+    </div>
+
+    <div class="table-responsive">
+        <table id="usersTable">
+          <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Joined</th>
+                <th>Activity</th>
+              </tr>
+          </thead>
+          <tbody id="userRows">
+              <tr><td colspan="7" style="text-align:center;color:#888;">Loading users from database...</td></tr>
+          </tbody>
+        </table>
+    </div>
+
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    window.addEventListener('DOMContentLoaded', async () => {
+        if (!requireAuth('ADMIN')) return;
+
+        try {
+            const res = await ReportsAPI.usersReport();
+            const tbody = document.getElementById('userRows');
+
+            if (res.ok && res.data.success && res.data.users) {
+                const users = res.data.users;
+                document.getElementById('userCountBadge').textContent = `Total: ${users.length} users`;
+
+                if (users.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#888;">No users found in database.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = users.map(u => {
+                    const roleClass = u.role === 'ADMIN' ? 'badge-admin' : u.role === 'RECRUITER' ? 'badge-recruiter' : 'badge-candidate';
+                    const statusHtml = u.isActive 
+                        ? '<span class="status-active">Active</span>' 
+                        : '<span class="status-blocked">Inactive</span>';
+                    
+                    let activity = '';
+                    if (u.role === 'CANDIDATE') {
+                        activity = `${u._count?.applications || 0} applications, ${u._count?.interviews || 0} interviews`;
+                    } else if (u.role === 'RECRUITER') {
+                        activity = `${u._count?.jobs || 0} jobs posted`;
+                    } else {
+                        activity = 'System Administrator';
+                    }
+
+                    return `
+                        <tr>
+                            <td>${u.id}</td>
+                            <td><strong>${escapeHtml(u.name)}</strong></td>
+                            <td>${escapeHtml(u.email)}</td>
+                            <td><span class="badge ${roleClass}">${u.role}</span></td>
+                            <td>${statusHtml}</td>
+                            <td>${formatDate(u.createdAt)}</td>
+                            <td>${activity}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:red;">Error loading users.</td></tr>';
+            }
+        } catch (err) {
+            console.error('Error fetching user report:', err);
+            document.getElementById('userRows').innerHTML = '<tr><td colspan="7" style="text-align:center;color:red;">Failed to connect to server.</td></tr>';
+        }
+    });
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HireHub - System Alerts</title>
+
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: Poppins, sans-serif;
+}
+
+body {
+  background: #f5f6fa;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.navbar {
+  background: #0a66c2;
+  padding: 15px 30px;
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.navbar h2 {
+  font-size: 22px;
+}
+
+.navbar button {
+  background: white;
+  color: #0a66c2;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.content {
+  padding: 30px;
+  width: 100%;
+  flex: 1;
+}
+
+.card {
+  background: white;
+  padding: 24px;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+h3 {
+  color: #0a66c2;
+}
+
+.health-pill {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  background: #e6fffa;
+  color: #234e52;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding: 12px;
+  border: 1px solid #ddd;
+  text-align: left;
+  font-size: 14px;
+}
+
+th {
+  background: #f1f7ff;
+  color: #0a66c2;
+  font-weight: 600;
+}
+
+button.resolve-btn {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  color: white;
+  background: #0a66c2;
+  font-weight: 600;
+  font-size: 13px;
+  transition: 0.2s;
+}
+
+button.resolve-btn:hover {
+  background: #084c91;
+}
+
+button:disabled {
+  background: #2ecc71 !important;
+  cursor: not-allowed;
+}
+
+.priority-high { color: #e74c3c; font-weight: 600; }
+.priority-critical { color: #c0392b; font-weight: 700; }
+.priority-medium { color: #f39c12; font-weight: 600; }
+.priority-low { color: #27ae60; font-weight: 600; }
+</style>
+
+</head>
+<body>
+
+<div class="navbar">
+  <h2>HireHub Admin - System Alerts</h2>
+  <div style="display:flex;gap:10px;">
+    <button onclick="location.href='report-analysis.html'">📊 Reports Menu</button>
+    <button onclick="location.href='admin-dashboard.html'">⬅ Back to Dashboard</button>
+  </div>
+</div>
+
+<div class="content">
+  <div class="card">
+    <div class="card-header">
+      <h3>System Alerts & Actions</h3>
+      <span id="healthBadge" class="health-pill">Checking system health...</span>
+    </div>
+
+    <div style="overflow-x:auto;">
+      <table>
+        <thead>
+          <tr>
+            <th>Alert ID</th>
+            <th>Type</th>
+            <th>Description</th>
+            <th>Priority</th>
+            <th>Date</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody id="alertsBody">
+          <tr><td colspan="6" style="text-align:center;color:#888;">Loading real system alerts...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+window.addEventListener('DOMContentLoaded', async () => {
+  if (!requireAuth('ADMIN')) return;
+
+  // Check backend server health
+  try {
+    const healthRes = await fetch('/api/health');
+    const healthData = await healthRes.json();
+    const hBadge = document.getElementById('healthBadge');
+    if (healthRes.ok && healthData.database === 'connected') {
+      hBadge.textContent = '🟢 Server & Database: Healthy';
+      hBadge.style.background = '#e6fffa';
+      hBadge.style.color = '#234e52';
+    } else {
+      hBadge.textContent = '🔴 Server/Database Warning';
+      hBadge.style.background = '#ffe3e3';
+      hBadge.style.color = '#c53030';
+    }
+  } catch (e) {
+    document.getElementById('healthBadge').textContent = '⚠️ Server Connection Issue';
+  }
+
+  loadSystemAlerts();
+});
+
+async function loadSystemAlerts() {
+  const tbody = document.getElementById('alertsBody');
+  const alertItems = [];
+
+  try {
+    // 1. Fetch pending jobs requiring admin approval
+    const pendingJobsRes = await JobsAPI.getPending();
+    if (pendingJobsRes.ok && pendingJobsRes.data.jobs) {
+      pendingJobsRes.data.jobs.forEach(job => {
+        alertItems.push({
+          id: `JOB-${job.id}`,
+          type: 'Job Approval',
+          desc: `Job "${job.title}" at "${job.company}" submitted by ${job.recruiter?.name || 'Recruiter'} is awaiting review.`,
+          priority: 'High',
+          priorityClass: 'priority-high',
+          date: formatDate(job.postedAt),
+          actionHtml: `<button class="resolve-btn" onclick="location.href='job-approval.html'">Review Job</button>`
+        });
+      });
+    }
+
+    // 2. Fetch admin notifications
+    const notifsRes = await NotificationsAPI.getAll();
+    if (notifsRes.ok && notifsRes.data.notifications) {
+      notifsRes.data.notifications.slice(0, 5).forEach(n => {
+        alertItems.push({
+          id: `NOTIF-${n.id}`,
+          type: n.type || 'System',
+          desc: `${n.title}: ${n.message}`,
+          priority: n.type === 'SYSTEM' ? 'Medium' : 'Low',
+          priorityClass: n.type === 'SYSTEM' ? 'priority-medium' : 'priority-low',
+          date: formatDate(n.createdAt),
+          actionHtml: n.isRead 
+            ? `<button class="resolve-btn" disabled>Resolved ✅</button>`
+            : `<button class="resolve-btn" onclick="resolveNotifAlert(this, ${n.id})">Mark Resolved</button>`
+        });
+      });
+    }
+  } catch (err) {
+    console.error('Error fetching system alerts:', err);
+  }
+
+  // If no dynamic alerts, show default operational notice
+  if (alertItems.length === 0) {
+    alertItems.push({
+      id: 'SYS-100',
+      type: 'System Health',
+      desc: 'All recruitment workflows, jobs, and user accounts are operating normally.',
+      priority: 'Low',
+      priorityClass: 'priority-low',
+      date: new Date().toLocaleDateString('en-IN'),
+      actionHtml: `<button class="resolve-btn" disabled>Resolved ✅</button>`
+    });
+  }
+
+  tbody.innerHTML = alertItems.map(a => `
+    <tr>
+      <td>${a.id}</td>
+      <td><strong>${escapeHtml(a.type)}</strong></td>
+      <td>${escapeHtml(a.desc)}</td>
+      <td class="${a.priorityClass}">${a.priority}</td>
+      <td>${a.date}</td>
+      <td>${a.actionHtml}</td>
+    </tr>
+  `).join('');
+}
+
+async function resolveNotifAlert(btn, notifId) {
+  try {
+    const res = await NotificationsAPI.markRead(notifId);
+    if (res.ok) {
+      btn.innerText = "Resolved ✅";
+      btn.disabled = true;
+      let row = btn.parentElement.parentElement;
+      row.style.background = "#e6ffe6";
+    }
+  } catch (e) {
+    console.error('Failed to resolve alert:', e);
+  }
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+</script>
+
+</body>
+</html>

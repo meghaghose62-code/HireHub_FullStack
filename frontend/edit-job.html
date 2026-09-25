@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HireHub - Manage Job Postings</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; font-family:Poppins,sans-serif; }
+    body { background:#f5f6fa; }
+
+    .navbar { background:#0a66c2; padding:15px 30px; color:white; display:flex; justify-content:space-between; align-items:center; }
+    .navbar h2 { font-size:22px; }
+    .navbar button { background:white; color:#0a66c2; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-weight:600; }
+
+    .container { padding:25px; max-width:1100px; margin:0 auto; }
+
+    .page-header {
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+        margin-bottom:20px;
+    }
+    .page-header h2 { color:#0a66c2; }
+
+    .btn-new-job {
+        background:#0a66c2; color:white; border:none;
+        padding:10px 18px; border-radius:6px; cursor:pointer; font-weight:600;
+        font-size:14px;
+    }
+    .btn-new-job:hover { background:#084d94; }
+
+    .job-card {
+        background:white;
+        padding:20px;
+        border-radius:8px;
+        box-shadow:0 1px 4px rgba(0,0,0,0.1);
+        margin-bottom:20px;
+        border-left:5px solid #0a66c2;
+    }
+
+    .job-card-header {
+        display:flex;
+        justify-content:space-between;
+        align-items:flex-start;
+        gap:10px;
+        flex-wrap:wrap;
+    }
+
+    .job-card h3 { color:#0a66c2; font-size:18px; margin-bottom:6px; }
+    .job-card p { color:#444; font-size:14px; margin:4px 0; }
+
+    .status-badge {
+        padding:4px 12px;
+        border-radius:20px;
+        font-size:12px;
+        font-weight:700;
+        text-transform:uppercase;
+    }
+    .status-PENDING { background:#fff3cd; color:#856404; }
+    .status-APPROVED { background:#d4edda; color:#155724; }
+    .status-REJECTED { background:#f8d7da; color:#721c24; }
+    .status-CLOSED { background:#e2e3e5; color:#383d41; }
+
+    .job-actions {
+        display:flex;
+        gap:10px;
+        margin-top:12px;
+        flex-wrap:wrap;
+    }
+
+    .job-actions button {
+        border:none;
+        padding:7px 14px;
+        border-radius:6px;
+        cursor:pointer;
+        font-size:13px;
+        font-weight:600;
+    }
+
+    .btn-view-apps { background:#17a2b8; color:white; }
+    .btn-view-apps:hover { background:#117a8b; }
+    .btn-edit { background:#6c757d; color:white; }
+    .btn-edit:hover { background:#5a6268; }
+    .btn-delete { background:#dc3545; color:white; }
+    .btn-delete:hover { background:#c82333; }
+
+    #loadingMsg { text-align:center; padding:40px; color:#666; }
+    #emptyMsg { text-align:center; padding:40px; color:#888; display:none; }
+
+    /* Edit Modal */
+    .modal-overlay {
+        display:none;
+        position:fixed; inset:0;
+        background:rgba(0,0,0,0.5);
+        z-index:1000;
+        justify-content:center;
+        align-items:center;
+    }
+    .modal-overlay.active { display:flex; }
+
+    .modal {
+        background:white;
+        width:100%;
+        max-width:500px;
+        border-radius:10px;
+        padding:25px;
+        max-height:90vh;
+        overflow-y:auto;
+    }
+    .modal h3 { color:#0a66c2; margin-bottom:15px; }
+    .modal label { font-weight:600; display:block; margin-top:12px; }
+    .modal input, .modal textarea, .modal select {
+        width:100%; padding:10px; margin-top:6px;
+        border:1px solid #ccc; border-radius:6px; font-family:Poppins,sans-serif;
+    }
+    .modal-actions { margin-top:18px; display:flex; gap:10px; }
+    .modal-actions button {
+        flex:1; padding:10px; border:none; border-radius:6px;
+        cursor:pointer; font-weight:600; font-size:14px;
+    }
+    .btn-save { background:#0a66c2; color:white; }
+    .btn-save:hover { background:#084d94; }
+    .btn-cancel { background:#6c757d; color:white; }
+    #modalError { color:red; font-size:13px; margin-top:8px; }
+</style>
+</head>
+<body>
+
+<div class="navbar">
+    <h2>HireHub - My Job Postings</h2>
+    <button onclick="location.href='recruiter-dashboard.html'">Back</button>
+</div>
+
+<div class="container">
+    <div class="page-header">
+        <h2>📋 My Job Postings</h2>
+        <button class="btn-new-job" onclick="location.href='post-job.html'">+ Post New Job</button>
+    </div>
+
+    <div id="loadingMsg">Loading your jobs...</div>
+    <div id="jobList"></div>
+    <div id="emptyMsg">
+        📭 You haven't posted any jobs yet.
+        <br><br>
+        <button class="btn-new-job" onclick="location.href='post-job.html'">Post Your First Job</button>
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="editModal">
+    <div class="modal">
+        <h3>✏ Edit Job Posting</h3>
+        <input type="hidden" id="editJobId">
+
+        <label>Job Title</label>
+        <input type="text" id="editTitle" required>
+
+        <label>Company Name</label>
+        <input type="text" id="editCompany" required>
+
+        <label>Location</label>
+        <input type="text" id="editLocation" required>
+
+        <label>Job Type</label>
+        <select id="editJobType">
+            <option value="FULL_TIME">Full Time</option>
+            <option value="PART_TIME">Part Time</option>
+            <option value="INTERNSHIP">Internship</option>
+            <option value="REMOTE">Remote</option>
+        </select>
+
+        <label>Experience</label>
+        <input type="text" id="editExperience" placeholder="e.g. 2-4 years">
+
+        <label>Salary</label>
+        <input type="text" id="editSalary" placeholder="e.g. ₹10-15 LPA">
+
+        <label>Skills</label>
+        <input type="text" id="editSkills" placeholder="e.g. React, Node.js">
+
+        <label>Description</label>
+        <textarea id="editDescription" rows="4"></textarea>
+
+        <p id="modalError"></p>
+
+        <div class="modal-actions">
+            <button class="btn-save" id="saveEditBtn" onclick="handleSaveEdit()">Save Changes</button>
+            <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);
+    }
+
+    function statusBadge(status) {
+        const labels = { PENDING:'⏳ Pending', APPROVED:'✅ Approved', REJECTED:'❌ Rejected', CLOSED:'🔒 Closed' };
+        return `<span class="status-badge status-${status}">${labels[status] || status}</span>`;
+    }
+
+    async function loadMyJobs() {
+        const list = document.getElementById('jobList');
+        const loading = document.getElementById('loadingMsg');
+        const empty = document.getElementById('emptyMsg');
+
+        loading.style.display = 'block';
+        empty.style.display = 'none';
+        list.innerHTML = '';
+
+        try {
+            const res = await JobsAPI.getMyJobs();
+            loading.style.display = 'none';
+
+            if (!res.ok || !res.data.success) {
+                list.innerHTML = '<p style="color:red;text-align:center;padding:20px;">Failed to load your jobs.</p>';
+                return;
+            }
+
+            const jobs = res.data.jobs;
+            if (!jobs || jobs.length === 0) {
+                empty.style.display = 'block';
+                return;
+            }
+
+            jobs.forEach(job => {
+                const appCount = job._count?.applications || 0;
+                const postedDate = new Date(job.postedAt).toLocaleDateString('en-IN', {
+                    day:'numeric', month:'short', year:'numeric'
+                });
+                const typeLabel = (job.jobType || 'FULL_TIME').replace('_', ' ');
+
+                const card = document.createElement('div');
+                card.className = 'job-card';
+                card.id = `job-${job.id}`;
+                card.innerHTML = `
+                    <div class="job-card-header">
+                        <div>
+                            <h3>${escapeHtml(job.title)}</h3>
+                            <p>🏢 ${escapeHtml(job.company)} | 📍 ${escapeHtml(job.location)} | ${escapeHtml(typeLabel)}</p>
+                            <p>📅 Posted: ${postedDate} | 👥 Applications: <strong>${appCount}</strong></p>
+                            ${job.salary ? `<p>💰 ${escapeHtml(job.salary)}</p>` : ''}
+                        </div>
+                        ${statusBadge(job.status)}
+                    </div>
+                    <p style="font-size:13px;color:#666;margin-top:8px;">${escapeHtml((job.description || '').substring(0, 150))}${job.description?.length > 150 ? '...' : ''}</p>
+                    <div class="job-actions">
+                        <button class="btn-view-apps" onclick="location.href='applications.html?jobId=${job.id}'">👁 View Applications (${appCount})</button>
+                        <button class="btn-edit" onclick="openEditModal(${JSON.stringify(job).replace(/"/g,'&quot;')})">✏ Edit</button>
+                        <button class="btn-delete" onclick="handleDeleteJob(${job.id}, this)">🗑 Delete</button>
+                    </div>
+                `;
+                list.appendChild(card);
+            });
+
+        } catch (e) {
+            loading.style.display = 'none';
+            list.innerHTML = '<p style="color:red;text-align:center;padding:20px;">Network error loading jobs.</p>';
+        }
+    }
+
+    function openEditModal(job) {
+        document.getElementById('editJobId').value = job.id;
+        document.getElementById('editTitle').value = job.title || '';
+        document.getElementById('editCompany').value = job.company || '';
+        document.getElementById('editLocation').value = job.location || '';
+        document.getElementById('editJobType').value = job.jobType || 'FULL_TIME';
+        document.getElementById('editExperience').value = job.experience || '';
+        document.getElementById('editSalary').value = job.salary || '';
+        document.getElementById('editSkills').value = job.skills || '';
+        document.getElementById('editDescription').value = job.description || '';
+        document.getElementById('modalError').textContent = '';
+        document.getElementById('editModal').classList.add('active');
+    }
+
+    function closeModal() {
+        document.getElementById('editModal').classList.remove('active');
+    }
+
+    async function handleSaveEdit() {
+        const btn = document.getElementById('saveEditBtn');
+        const errEl = document.getElementById('modalError');
+        errEl.textContent = '';
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+
+        const jobId = document.getElementById('editJobId').value;
+        const payload = {
+            title: document.getElementById('editTitle').value.trim(),
+            company: document.getElementById('editCompany').value.trim(),
+            location: document.getElementById('editLocation').value.trim(),
+            jobType: document.getElementById('editJobType').value,
+            experience: document.getElementById('editExperience').value.trim(),
+            salary: document.getElementById('editSalary').value.trim(),
+            skills: document.getElementById('editSkills').value.trim(),
+            description: document.getElementById('editDescription').value.trim()
+        };
+
+        try {
+            const res = await JobsAPI.update(jobId, payload);
+            if (res.ok && res.data.success) {
+                showToast('Job updated successfully!', 'success');
+                closeModal();
+                loadMyJobs();
+            } else {
+                errEl.textContent = res.data.message || 'Failed to update job.';
+            }
+        } catch (e) {
+            errEl.textContent = 'Network error saving job.';
+        }
+
+        btn.disabled = false;
+        btn.textContent = 'Save Changes';
+    }
+
+    async function handleDeleteJob(jobId, btn) {
+        if (!confirm('Are you sure you want to delete this job posting? This cannot be undone.')) return;
+        btn.disabled = true;
+        try {
+            const res = await JobsAPI.delete(jobId);
+            if (res.ok && res.data.success) {
+                document.getElementById(`job-${jobId}`).remove();
+                showToast('Job deleted successfully', 'success');
+                if (document.querySelectorAll('.job-card').length === 0) {
+                    document.getElementById('emptyMsg').style.display = 'block';
+                }
+            } else {
+                showToast(res.data.message || 'Failed to delete job', 'error');
+                btn.disabled = false;
+            }
+        } catch (e) {
+            showToast('Network error deleting job', 'error');
+            btn.disabled = false;
+        }
+    }
+
+    // Close modal on backdrop click
+    document.getElementById('editModal').addEventListener('click', (e) => {
+        if (e.target === document.getElementById('editModal')) closeModal();
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+        if (!requireAuth('RECRUITER')) return;
+        loadMyJobs();
+    });
+</script>
+</body>
+</html>

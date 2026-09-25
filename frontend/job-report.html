@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Job Report - HireHub</title>
+
+<style>
+ * { margin:0; padding:0; box-sizing:border-box; font-family:Poppins, sans-serif; }
+ body { background:#f5f6fa; display:flex; flex-direction:column; min-height:100vh; }
+
+ .navbar {
+     background:#0a66c2;
+     padding:15px 30px;
+     color:white;
+     display:flex;
+     justify-content:space-between;
+     align-items:center;
+     box-shadow:0 2px 6px rgba(0,0,0,0.15);
+ }
+ .navbar h2 { font-size:22px; }
+ .navbar button {
+     background:white;
+     color:#0a66c2;
+     border:none;
+     padding:8px 16px;
+     border-radius:6px;
+     cursor:pointer;
+     font-weight:600;
+     transition:0.2s;
+ }
+ .navbar button:hover { background:#e8f0ff; }
+
+ .content { flex:1; padding:30px; }
+
+ .report-box {
+     background:white;
+     padding:22px;
+     border-radius:10px;
+     box-shadow:0 2px 8px rgba(0,0,0,0.1);
+ }
+
+ .table-responsive {
+     overflow-x: auto;
+     margin-top: 15px;
+ }
+
+ table { width:100%; border-collapse:collapse; }
+ table, th, td { border:1px solid #ddd; }
+ th, td { padding:12px; text-align:left; font-size:14px; }
+ th { background:#0a66c2; color:white; font-weight:600; }
+ tr:hover { background: #f9fbff; }
+
+ .status-approved { color: #27ae60; font-weight:600; }
+ .status-pending { color: #f39c12; font-weight:600; }
+ .status-rejected { color: #e74c3c; font-weight:600; }
+ .status-closed { color: #7f8c8d; font-weight:600; }
+</style>
+</head>
+
+<body>
+
+<div class="navbar">
+    <h2>💼 Job Report</h2>
+    <div style="display:flex;gap:10px;">
+        <button onclick="location.href='report-analysis.html'">📊 Reports Menu</button>
+        <button onclick="location.href='admin-dashboard.html'">⬅ Back to dashboard</button>
+    </div>
+</div>
+
+<div class="content">
+  <div class="report-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <h3>Job Post Details</h3>
+        <span id="jobCountBadge" style="font-size:14px;color:#555;font-weight:500;"></span>
+    </div>
+
+    <div class="table-responsive">
+        <table>
+          <thead>
+              <tr>
+                <th>ID</th>
+                <th>Job Title</th>
+                <th>Company</th>
+                <th>Location</th>
+                <th>Type</th>
+                <th>Recruiter</th>
+                <th>Applications</th>
+                <th>Status</th>
+              </tr>
+          </thead>
+          <tbody id="jobRows">
+              <tr><td colspan="8" style="text-align:center;color:#888;">Loading job listings from database...</td></tr>
+          </tbody>
+        </table>
+    </div>
+
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    window.addEventListener('DOMContentLoaded', async () => {
+        if (!requireAuth('ADMIN')) return;
+
+        try {
+            const res = await ReportsAPI.jobsReport();
+            const tbody = document.getElementById('jobRows');
+
+            if (res.ok && res.data.success && res.data.jobs) {
+                const jobs = res.data.jobs;
+                document.getElementById('jobCountBadge').textContent = `Total: ${jobs.length} jobs`;
+
+                if (jobs.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#888;">No jobs found in database.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = jobs.map(j => {
+                    let statusClass = 'status-pending';
+                    if (j.status === 'APPROVED') statusClass = 'status-approved';
+                    else if (j.status === 'REJECTED') statusClass = 'status-rejected';
+                    else if (j.status === 'CLOSED') statusClass = 'status-closed';
+
+                    const appCount = j._count?.applications || 0;
+                    const recruiterName = j.recruiter ? j.recruiter.name : 'Unknown';
+
+                    return `
+                        <tr>
+                            <td>${j.id}</td>
+                            <td><strong>${escapeHtml(j.title)}</strong></td>
+                            <td>${escapeHtml(j.company)}</td>
+                            <td>${escapeHtml(j.location)}</td>
+                            <td>${j.jobType ? j.jobType.replace('_', ' ') : 'FULL TIME'}</td>
+                            <td>${escapeHtml(recruiterName)}</td>
+                            <td>${appCount}</td>
+                            <td class="${statusClass}">${j.status}</td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:red;">Error loading jobs report.</td></tr>';
+            }
+        } catch (err) {
+            console.error('Error fetching job report:', err);
+            document.getElementById('jobRows').innerHTML = '<tr><td colspan="8" style="text-align:center;color:red;">Failed to connect to server.</td></tr>';
+        }
+    });
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+</script>
+
+</body>
+</html>

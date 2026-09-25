@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HireHub - Job Listings With Filters</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Poppins", sans-serif;
+        }
+
+        body {
+            background: #f5f6fa;
+        }
+
+        /* Navbar */
+        .navbar {
+            background: #0a66c2;
+            padding: 15px 30px;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar h2 {
+            font-size: 22px;
+        }
+
+        .navbar button {
+            background: white;
+            color: #0a66c2;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .container {
+            padding: 25px;
+        }
+
+        /* Filters Section */
+        .filters-box {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .filters-box h3 {
+            color: #0a66c2;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+
+        .filters-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+        }
+
+        select, input {
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+        }
+
+        /* Job Card */
+        .job-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            border-left: 5px solid #0a66c2;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .job-info {
+            flex: 1 1 65%;
+        }
+
+        .job-info h3 {
+            color: #0a66c2;
+            font-size: 20px;
+        }
+
+        .job-info p {
+            margin: 6px 0;
+            color: #444;
+        }
+
+        .job-info button {
+            background: #0a66c2;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+
+        .job-img {
+            flex: 1 1 30%;
+        }
+
+        .job-img img {
+            width: 100%;
+            height: auto;
+            border-radius: 6px;
+        }
+
+        #no-results {
+            text-align: center;
+            font-size: 18px;
+            margin-top: 30px;
+            display: none;
+            color: #555;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<div class="navbar">
+    <h2>Available Jobs - Software Engineering</h2>
+    <button onclick="location.href='dashboard.html'">Go Back</button>
+</div>
+
+<div class="container">
+
+    <!-- FILTER SECTION -->
+    <div class="filters-box">
+        <h3>Search & Filters</h3>
+
+        <div class="filters-grid">
+            <input type="text" id="searchTitle" placeholder="Search Job Title...">
+
+            <select id="filterLocation">
+                <option value="">Location</option>
+                <option>Bengaluru</option>
+                <option>Remote</option>
+                <option>Hyderabad</option>
+                <option>Chennai</option>
+                <option>Delhi</option>
+                <option>Mumbai</option>
+                <option>Noida</option>
+                <option>Pune</option>
+            </select>
+
+            <select id="filterExperience">
+                <option value="">Experience</option>
+                <option>0-1 years</option>
+                <option>1-3 years</option>
+                <option>2+ years</option>
+                <option>3+ years</option>
+                <option>3-5 years</option>
+            </select>
+
+            <select id="filterType">
+                <option value="">Job Type</option>
+                <option>Full Time</option>
+                <option>Part Time</option>
+                <option>Internship</option>
+                <option>Remote</option>
+            </select>
+
+            <input type="text" id="filterSkills" placeholder="Skills (e.g., React)">
+        </div>
+    </div>
+
+    <!-- DYNAMIC JOB LIST -->
+    <div id="jobsLoading" style="text-align:center;padding:40px;color:#0a66c2;font-size:16px;font-weight:600;">
+        ⏳ Loading available jobs...
+    </div>
+
+    <p id="no-results">❌ No jobs found</p>
+
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    const filters = {
+        title: "",
+        location: "",
+        exp: "",
+        type: "",
+        skills: ""
+    };
+
+    const noResults = document.getElementById("no-results");
+
+    const defaultImages = [
+        'images/fullstack.jpg',
+        'images/frontend.jpg',
+        'images/backend.jpg',
+        'images/devops.jpg',
+        'images/aiml.jpg',
+        'images/mobile.jpg',
+        'images/cloud.jpg',
+        'images/uiux.jpg',
+        'images/sde.jpg',
+        'images/fullstack2.jpg'
+    ];
+
+    async function loadBackendJobs() {
+        const loadingEl = document.getElementById("jobsLoading");
+        try {
+            const res = await JobsAPI.getAll();
+            if (loadingEl) loadingEl.remove();
+
+            if (res.ok && res.data && res.data.jobs && res.data.jobs.length > 0) {
+                const container = document.querySelector('.container');
+
+                res.data.jobs.forEach((job, index) => {
+                    const card = document.createElement('div');
+                    card.className = 'job-card';
+                    card.dataset.title = job.title;
+                    card.dataset.location = job.location;
+                    card.dataset.exp = job.experience;
+                    const cleanType = (job.jobType || 'FULL_TIME').replace('_', ' ').toLowerCase();
+                    card.dataset.type = cleanType;
+                    card.dataset.skills = (job.skills || '').toLowerCase();
+
+                    const imgPath = defaultImages[index % defaultImages.length];
+
+                    card.innerHTML = `
+                        <div class="job-info">
+                            <h3>${escapeHtml(job.title)}</h3>
+                            <p><b>🏢 ${escapeHtml(job.company)}</b> | 📍 ${escapeHtml(job.location)} | 💼 ${escapeHtml(job.experience || 'Not specified')}</p>
+                            <p>🛠 ${escapeHtml(job.skills || '')} ${job.salary ? ' | 💰 ' + escapeHtml(job.salary) : ''}</p>
+                            <p style="font-size:14px;color:#555;margin-top:6px;max-width:600px;">${escapeHtml((job.description || '').substring(0, 160))}...</p>
+                            <div style="display:flex;gap:10px;margin-top:8px;">
+                                <button onclick="location.href='apply.html?jobId=${job.id}'">Apply Now</button>
+                                <button onclick="handleSaveJob(${job.id}, this)" style="background:#555;">📌 Save</button>
+                            </div>
+                        </div>
+                        <div class="job-img">
+                            <img src="${imgPath}" onerror="this.style.display='none'">
+                        </div>
+                    `;
+                    container.insertBefore(card, noResults);
+                });
+            } else {
+                noResults.style.display = 'block';
+            }
+        } catch (e) {
+            if (loadingEl) loadingEl.remove();
+            noResults.textContent = 'Unable to load jobs from server.';
+            noResults.style.display = 'block';
+        }
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/[&<>"']/g, m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[m]);
+    }
+
+    async function handleSaveJob(jobId, btn) {
+        if (!Auth.isLoggedIn()) {
+            showToast('Please login to save jobs', 'error');
+            setTimeout(() => { window.location.href = 'login.html'; }, 1200);
+            return;
+        }
+        try {
+            const res = await UsersAPI.saveJob(jobId);
+            if (res.ok && res.data.success) {
+                showToast(res.data.message || (res.data.saved ? 'Job saved!' : 'Job unsaved'), 'success');
+                btn.textContent = res.data.saved ? '✓ Saved' : '📌 Save';
+                btn.style.background = res.data.saved ? '#28a745' : '#555';
+            } else {
+                showToast(res.data.message || 'Could not save job', 'error');
+            }
+        } catch (e) {
+            showToast('Network error saving job', 'error');
+        }
+    }
+
+    // Attach events
+    document.getElementById("searchTitle").addEventListener("input", e => {
+        filters.title = e.target.value.toLowerCase();
+        filterJobs();
+    });
+
+    document.getElementById("filterLocation").addEventListener("change", e => {
+        filters.location = e.target.value;
+        filterJobs();
+    });
+
+    document.getElementById("filterExperience").addEventListener("change", e => {
+        filters.exp = e.target.value;
+        filterJobs();
+    });
+
+    document.getElementById("filterType").addEventListener("change", e => {
+        filters.type = e.target.value.toLowerCase().replace('-', ' ').replace('_', ' ');
+        filterJobs();
+    });
+
+    document.getElementById("filterSkills").addEventListener("input", e => {
+        filters.skills = e.target.value.toLowerCase();
+        filterJobs();
+    });
+
+    function filterJobs() {
+        let visible = 0;
+        const jobCards = document.querySelectorAll(".job-card");
+
+        jobCards.forEach(job => {
+            const title = (job.dataset.title || '').toLowerCase();
+            const location = (job.dataset.location || '');
+            const exp = (job.dataset.exp || '');
+            const type = (job.dataset.type || '').toLowerCase();
+            const skills = (job.dataset.skills || '').toLowerCase();
+
+            const matchTitle = title.includes(filters.title);
+            const matchLocation = filters.location === "" || location.toLowerCase().includes(filters.location.toLowerCase());
+            const matchExp = filters.exp === "" || exp.includes(filters.exp);
+            const matchType = filters.type === "" || type.includes(filters.type);
+            const matchSkills = skills.includes(filters.skills);
+
+            if (matchTitle && matchLocation && matchExp && matchType && matchSkills) {
+                job.style.display = "flex";
+                visible++;
+            } else {
+                job.style.display = "none";
+            }
+        });
+
+        noResults.style.display = visible === 0 ? "block" : "none";
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+        loadBackendJobs();
+    });
+</script>
+
+</body>
+</html>

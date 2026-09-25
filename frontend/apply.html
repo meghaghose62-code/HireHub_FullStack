@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HireHub - Apply for Job</title>
+<style>
+    * { margin:0; padding:0; font-family:Poppins,sans-serif; box-sizing:border-box; }
+    body { background:#f5f6fa; }
+
+    .navbar {
+        background:#0a66c2;
+        padding:15px 30px;
+        color:white;
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+    }
+    .navbar h2 { font-size:22px; }
+
+    .container {
+        max-width:600px;
+        background:white;
+        margin:30px auto;
+        padding:25px;
+        border-radius:8px;
+        box-shadow:0 1px 4px rgba(0,0,0,0.1);
+    }
+
+    .container h3 { text-align:center; color:#0a66c2; margin-bottom:15px; }
+
+    label { font-weight:600; display:block; margin-top:12px; }
+    input, textarea {
+        width:100%;
+        padding:10px;
+        margin-top:6px;
+        border:1px solid #ccc;
+        border-radius:6px;
+    }
+    textarea { resize:none; height:80px; }
+
+    button {
+        width:100%;
+        background:#0a66c2;
+        border:none;
+        color:white;
+        padding:12px;
+        border-radius:6px;
+        margin-top:18px;
+        font-size:16px;
+        cursor:pointer;
+    }
+    button:hover { background:#084d94; }
+
+    /* Required field indicator */
+    .required-star { color:#e53e3e; margin-left:3px; }
+
+    /* Invalid field highlight */
+    .field-invalid { border-color:#e53e3e !important; background:#fff5f5; }
+</style>
+</head>
+<body>
+
+<div class="navbar">
+    <h2>Apply for Job</h2>
+    <button onclick="location.href='jobs.html'" style="background:white;color:#0a66c2;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:600;">Back to Jobs</button>
+</div>
+
+<div class="container">
+    <h3>Submit Your Application</h3>
+    <div id="targetJobBanner" style="display:none;background:#eef5ff;border-left:4px solid #0a66c2;padding:12px;margin-bottom:15px;border-radius:4px;">
+        <strong id="jobTitleLabel" style="color:#0a66c2;font-size:16px;"></strong>
+        <p id="jobCompanyLabel" style="font-size:14px;color:#555;margin-top:3px;"></p>
+    </div>
+
+    <div id="invalidJobBanner" style="display:none;background:#fff3cd;color:#856404;border-left:4px solid #ffc107;padding:16px;border-radius:6px;font-size:15px;margin-bottom:15px;line-height:1.5;">
+        ⚠️ <strong>Invalid or unavailable job.</strong> Please return to <a href="jobs.html" style="color:#0a66c2;font-weight:600;">Search Jobs</a> and select a valid job.
+    </div>
+
+    <div id="alreadyAppliedBanner" style="display:none;background:#e8f4fd;color:#0a66c2;border-left:4px solid #0a66c2;padding:16px;border-radius:6px;font-size:15px;margin-bottom:15px;line-height:1.5;">
+        ℹ️ You have already applied for this position. <a href="dashboard.html" style="color:#0a66c2;font-weight:700;margin-left:5px;">Go to Dashboard →</a>
+    </div>
+
+    <form id="applyForm" onsubmit="handleApply(event)">
+        <label>Full Name <span class="required-star">*</span></label>
+        <input type="text" id="appFullName" placeholder="Enter your name" required>
+
+        <label>Email <span class="required-star">*</span></label>
+        <input type="email" id="appEmail" placeholder="Enter your email" required>
+
+        <label>Phone Number <span class="required-star">*</span></label>
+        <input type="tel" id="appPhone" placeholder="Enter phone number" required>
+
+        <label>Resume <span class="required-star">*</span></label>
+        <div id="existingResumeBox" style="display:none;margin-top:6px;margin-bottom:6px;">
+            <select id="resumeSelect" style="width:100%;padding:10px;border:1px solid #ccc;border-radius:6px;">
+                <option value="">-- Choose Existing Resume or Upload Below --</option>
+            </select>
+        </div>
+        <input type="file" id="appResumeFile" accept=".pdf,.doc,.docx">
+        <small id="resumeHint" style="color:#888;font-size:12px;margin-top:4px;display:block;">Select an existing resume above or upload a new file. A resume is required.</small>
+
+        <label>Cover Letter <span class="required-star">*</span></label>
+        <textarea id="appCoverLetter" placeholder="Write a short cover letter..." required></textarea>
+
+        <p id="applyError" style="color:red;font-size:14px;margin-top:8px;text-align:center;"></p>
+
+        <button type="submit" id="submitApplyBtn">Submit Application</button>
+    </form>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+    let currentJobId = null;
+
+    window.addEventListener('DOMContentLoaded', async () => {
+        if (!requireAuth('CANDIDATE')) return;
+
+        const user = Auth.getUser();
+        if (user) {
+            if (user.name) document.getElementById('appFullName').value = user.name;
+            if (user.email) document.getElementById('appEmail').value = user.email;
+            if (user.phone) document.getElementById('appPhone').value = user.phone;
+        }
+
+        // Get jobId from URL query parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        currentJobId = urlParams.get('jobId') || urlParams.get('id');
+
+        if (!currentJobId || isNaN(parseInt(currentJobId))) {
+            showInvalidJob();
+            return;
+        }
+
+        try {
+            const res = await JobsAPI.getById(currentJobId);
+            if (!res.ok || !res.data || !res.data.success || !res.data.job || res.data.job.status !== 'APPROVED') {
+                showInvalidJob();
+                return;
+            }
+
+            const job = res.data.job;
+            document.getElementById('jobTitleLabel').textContent = job.title;
+            const salaryText = job.salary ? ` • 💰 ${job.salary}` : '';
+            document.getElementById('jobCompanyLabel').textContent = `${job.company} • ${job.location} • ${(job.jobType || 'FULL_TIME').replace('_', ' ')}${salaryText}`;
+            document.getElementById('targetJobBanner').style.display = 'block';
+
+            // Check if candidate has already applied to this job
+            const myAppsRes = await ApplicationsAPI.getMine();
+            if (myAppsRes.ok && myAppsRes.data && myAppsRes.data.applications) {
+                const already = myAppsRes.data.applications.find(a => a.jobId === parseInt(currentJobId));
+                if (already) {
+                    document.getElementById('applyForm').style.display = 'none';
+                    document.getElementById('alreadyAppliedBanner').style.display = 'block';
+                    return;
+                }
+            }
+        } catch (e) {
+            showInvalidJob();
+            return;
+        }
+
+        // Load existing resumes if available
+        try {
+            const resResumes = await ResumesAPI.getMine();
+            if (resResumes.ok && resResumes.data && resResumes.data.resumes && resResumes.data.resumes.length > 0) {
+                const sel = document.getElementById('resumeSelect');
+                resResumes.data.resumes.forEach(r => {
+                    const opt = document.createElement('option');
+                    opt.value = r.id;
+                    opt.textContent = `${r.fileName} (Uploaded: ${new Date(r.uploadedAt).toLocaleDateString()})`;
+                    sel.appendChild(opt);
+                });
+                sel.value = resResumes.data.resumes[0].id;
+                document.getElementById('existingResumeBox').style.display = 'block';
+            }
+        } catch (e) {
+            console.warn('Could not fetch resumes:', e);
+        }
+    });
+
+    function showInvalidJob() {
+        document.getElementById('targetJobBanner').style.display = 'none';
+        document.getElementById('applyForm').style.display = 'none';
+        document.getElementById('invalidJobBanner').style.display = 'block';
+    }
+
+    async function handleApply(event) {
+        event.preventDefault();
+        const errEl = document.getElementById('applyError');
+        const btn = document.getElementById('submitApplyBtn');
+        errEl.textContent = '';
+
+        if (!currentJobId) {
+            showInvalidJob();
+            return;
+        }
+
+        // ── Front-end validation ──────────────────────────────────────────────
+        const fullName = document.getElementById('appFullName').value.trim();
+        const email = document.getElementById('appEmail').value.trim();
+        const phone = document.getElementById('appPhone').value.trim();
+        const fileInput = document.getElementById('appResumeFile');
+        const selResume = document.getElementById('resumeSelect');
+        const coverLetter = document.getElementById('appCoverLetter').value.trim();
+
+        // Helper to highlight invalid fields
+        function markField(id, invalid) {
+            const el = document.getElementById(id);
+            if (el) el.classList.toggle('field-invalid', invalid);
+        }
+
+        // Reset highlights
+        ['appFullName','appEmail','appPhone','appResumeFile','appCoverLetter'].forEach(id => markField(id, false));
+
+        if (!fullName) {
+            errEl.textContent = '⚠️ Full Name is required.';
+            markField('appFullName', true);
+            document.getElementById('appFullName').focus();
+            return;
+        }
+
+        // Email format validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!email) {
+            errEl.textContent = '⚠️ Email address is required.';
+            markField('appEmail', true);
+            document.getElementById('appEmail').focus();
+            return;
+        }
+        if (!emailRegex.test(email)) {
+            errEl.textContent = '⚠️ Please enter a valid email address (e.g. name@example.com).';
+            markField('appEmail', true);
+            document.getElementById('appEmail').focus();
+            return;
+        }
+
+        if (!phone) {
+            errEl.textContent = '⚠️ Phone Number is required.';
+            markField('appPhone', true);
+            document.getElementById('appPhone').focus();
+            return;
+        }
+
+        // Resume: must have a file uploaded OR an existing resume selected
+        const hasNewFile = fileInput.files.length > 0;
+        const hasExistingResume = selResume && selResume.value && selResume.value !== '';
+        if (!hasNewFile && !hasExistingResume) {
+            errEl.textContent = '⚠️ A resume is required. Please upload a file or select an existing resume.';
+            markField('appResumeFile', true);
+            fileInput.focus();
+            return;
+        }
+
+        if (!coverLetter) {
+            errEl.textContent = '⚠️ Cover Letter is required. Please write a short cover letter.';
+            markField('appCoverLetter', true);
+            document.getElementById('appCoverLetter').focus();
+            return;
+        }
+        // ── End validation ────────────────────────────────────────────────────
+
+        btn.disabled = true;
+        btn.textContent = 'Submitting...';
+
+        let resumeId = null;
+
+        // Upload new resume file if provided
+        if (hasNewFile) {
+            const formData = new FormData();
+            formData.append('resume', fileInput.files[0]);
+            try {
+                const upRes = await ResumesAPI.upload(formData);
+                if (upRes.ok && upRes.data.success) {
+                    resumeId = upRes.data.resume.id;
+                } else {
+                    errEl.textContent = upRes.data.message || 'Error uploading resume.';
+                    btn.disabled = false;
+                    btn.textContent = 'Submit Application';
+                    return;
+                }
+            } catch (e) {
+                errEl.textContent = 'Network error uploading resume.';
+                btn.disabled = false;
+                btn.textContent = 'Submit Application';
+                return;
+            }
+        } else if (hasExistingResume) {
+            resumeId = parseInt(selResume.value);
+        }
+
+        try {
+            const applyRes = await ApplicationsAPI.apply({
+                jobId: parseInt(currentJobId),
+                fullName,
+                email,
+                phone,
+                coverLetter,
+                resumeId
+            });
+
+            if (applyRes.ok && applyRes.data.success) {
+                const appId = applyRes.data.application ? applyRes.data.application.id : '';
+                window.location.href = `success.html?appId=${appId}`;
+            } else {
+                errEl.textContent = applyRes.data.message || 'Failed to submit application.';
+                btn.disabled = false;
+                btn.textContent = 'Submit Application';
+            }
+        } catch (e) {
+            errEl.textContent = 'Server connection error.';
+            btn.disabled = false;
+            btn.textContent = 'Submit Application';
+        }
+    }
+</script>
+</body>
+</html>
+

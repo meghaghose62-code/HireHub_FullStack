@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HireHub – Find Your Dream Job</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Poppins", sans-serif;
+        }
+
+        body {
+            background-color: #f0f4f8;
+        }
+
+        /* Navbar */
+        nav {
+            background: #1b3b6f;
+            padding: 15px 50px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        nav .logo {
+            font-size: 28px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        nav ul {
+            list-style: none;
+            display: flex;
+        }
+
+        nav ul li {
+            margin: 0 15px;
+        }
+
+        nav ul li a {
+            text-decoration: none;
+            color: #fff;
+            font-size: 15px;
+        }
+
+        nav ul li a:hover {
+            text-decoration: underline;
+        }
+
+        /* Hero Section */
+        .hero {
+            height: 70vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(rgba(27, 59, 111, 0.6), rgba(27, 59, 111, 0.6)),
+                        url('images/my-hero-image.jpg');
+            background-position: center;
+            background-size: cover;
+            text-align: center;
+            color: white;
+            padding: 20px;
+        }
+
+        .hero h1 {
+            font-size: 48px;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 8px rgba(0,0,0,0.5);
+        }
+
+        .hero p {
+            font-size: 20px;
+            text-shadow: 1px 1px 5px rgba(0,0,0,0.5);
+        }
+
+        /* Features Section */
+        .features {
+            padding: 60px 20px;
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 25px;
+            background: #e3f2fd;
+        }
+
+        .feature-card {
+            background: #fff;
+            width: 300px;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 6px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 12px 20px rgba(0,0,0,0.2);
+        }
+
+        .feature-card h3 {
+            margin-bottom: 12px;
+            color: #1b3b6f;
+        }
+
+        .feature-card p {
+            font-size: 15px;
+            color: #333;
+        }
+
+        /* CTA Section */
+        .cta {
+            background: #1b3b6f;
+            color: white;
+            padding: 50px 20px;
+            text-align: center;
+        }
+
+        .cta h2 {
+            font-size: 32px;
+            margin-bottom: 15px;
+        }
+
+        .cta p {
+            font-size: 18px;
+        }
+
+        .cta button {
+            margin-top: 20px;
+            padding: 14px 28px;
+            background: #ffcd00;
+            color: #1b3b6f;
+            border: none;
+            font-size: 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+
+        .cta button:hover {
+            background: #e6b800;
+        }
+
+        /* Footer */
+        footer {
+            background: #102a54;
+            color: white;
+            text-align: center;
+            padding: 18px;
+            margin-top: 20px;
+        }
+
+        @media(max-width: 768px){
+            .features {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navbar -->
+    <nav>
+        <div class="logo">HireHub</div>
+        <ul id="navLinks">
+            <li><a href="index.html">Home</a></li>
+            <li><a href="jobs.html">Browse Jobs</a></li>
+            <li><a href="company-reviews.html">Company Reviews</a></li>
+            <li><a href="login.html">Login</a></li>
+            <li><a href="login.html#register">Register</a></li>
+        </ul>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <h1>Find Your Dream Job Today!</h1>
+        <p>Connecting talent with opportunities — one click away.</p>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features">
+        <div class="feature-card">
+            <h3>Find Jobs Easily</h3>
+            <p>Search and filter jobs to find the perfect role for your skills and passion.</p>
+        </div>
+
+        <div class="feature-card">
+            <h3>Hire Great Talent</h3>
+            <p>Recruiters can post jobs and connect with qualified applicants quickly.</p>
+        </div>
+
+        <div class="feature-card">
+            <h3>Track Applications</h3>
+            <p>Monitor your job application status in real time from your dashboard.</p>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta">
+        <h2>Ready to Begin Your Career Journey?</h2>
+        <p>Join HireHub and explore thousands of job opportunities.</p>
+        <button id="ctaBtn" onclick="handleCtaClick()">Get Started</button>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <p>© 2025 HireHub. All Rights Reserved.</p>
+    </footer>
+
+    <script src="js/api.js"></script>
+    <script>
+        function getDashboardUrl(role) {
+            if (role === 'ADMIN') return 'admin-dashboard.html';
+            if (role === 'RECRUITER') return 'recruiter-dashboard.html';
+            return 'dashboard.html';
+        }
+
+        function handleCtaClick() {
+            if (Auth.isLoggedIn()) {
+                window.location.href = getDashboardUrl(Auth.getRole());
+            } else {
+                window.location.href = 'login.html';
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const user = Auth.getUser();
+            const nav = document.getElementById('navLinks');
+
+            if (Auth.isLoggedIn() && user) {
+                const dashUrl = getDashboardUrl(user.role);
+                nav.innerHTML = `
+                    <li><a href="index.html">Home</a></li>
+                    <li><a href="jobs.html">Browse Jobs</a></li>
+                    <li><a href="company-reviews.html">Company Reviews</a></li>
+                    <li><a href="${dashUrl}" style="color:#ffcd00;font-weight:600;">Dashboard</a></li>
+                    <li><a href="javascript:void(0)" onclick="Auth.clearSession(); location.reload();">Logout (${escapeHtml(user.name.split(' ')[0])})</a></li>
+                `;
+                const ctaBtn = document.getElementById('ctaBtn');
+                if (ctaBtn) ctaBtn.textContent = 'Go to My Dashboard';
+            }
+        });
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+    </script>
+</body>
+</html>
+
+
+
