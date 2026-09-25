@@ -3,7 +3,7 @@
  * Handles all communication with the backend API at http://localhost:5000/api
  */
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = '/api';
 
 // ─── TOKEN MANAGEMENT ─────────────────────────────────────────────────────────
 const Auth = {
